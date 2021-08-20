@@ -117,7 +117,7 @@ func applyLambda(list []interface{}) interface{} {
 	lambdaBody := lambda[2]
 
 	for i, arg := range lambdaArgs {
-		lambdaArgs[i] = listWalkSub(lambdaBody, arg, args[i])
+		lambdaBody = listWalkSub(lambdaBody, arg, args[i])
 	}
 
 	switch lambdaBody.(type) {
@@ -163,7 +163,7 @@ func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interfac
 func applyBif(list []interface{}) interface{} {
 	switch list[0].(string) {
 	case "print":
-		n, err := fmt.Println(list[1:])
+		n, err := fmt.Println(eval(list[1]))
 		return append([]interface{}{}, n, err)
 	case "lambda":
 		return list
