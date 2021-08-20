@@ -6,15 +6,22 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
+	"reflect"
 	"strings"
 )
 
 var symbolTable map[string]interface{}
 
 func main() {
+
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 	var reader *bufio.Reader
+
 	symbolTable = make(map[string]interface{})
+	symbolTable["foo"] = "this-is-a-variable"
 
 	if len(os.Args) == 1 {
 		reader = bufio.NewReader(os.Stdin)
@@ -73,55 +80,93 @@ func readAll(r *bufio.Reader) interface{} {
 
 func eval(source interface{}) interface{} {
 	switch source.(type) {
-	case []interface{}:
-		return funcall(source.([]interface{})[0].(string), source.([]interface{})[1:])
 	case string:
-		return source
+		return symbolTable[source.(string)]
 	case float64:
 		return source
-	case nil:
-		return nil
+	case func(interface{}) interface{}:
+		return source
+	case []interface{}:
+		return apply(source.([]interface{}))
 	}
-	fmt.Printf("value: %+v", source)
+	fmt.Printf("value: %v", source)
+	fmt.Printf(": %s\n", reflect.TypeOf((source)))
 	panic("eval fell off")
 }
 
-func funcall(name string, args []interface{}) interface{} {
-	for i, arg := range args {
-		args[i] = eval(arg)
+func apply(list []interface{}) interface{} {
+	switch list[0].(type) {
+	case []interface{}:
+		return applyLambda(list)
+	case string:
+		str := symbolTable[list[0].(string)]
+		if str != nil {
+			list[0] = str
+			return apply(list)
+		}
+		return applyBif(list)
+	}
+	panic("apply fell off")
+}
+
+func applyLambda(list []interface{}) interface{} {
+	lambda := list[0].([]interface{})
+	args := list[1:]
+
+	lambdaArgs := lambda[1].([]interface{})
+	lambdaBody := lambda[2]
+
+	for i, arg := range lambdaArgs {
+		lambdaArgs[i] = listWalkSub(lambdaBody, arg, args[i])
 	}
 
-	switch name {
-	case "program":
-		for i, program := range args {
-			if i == len(args)-1 {
-				return eval(program)
-			} else {
-				eval(program)
+	switch lambdaBody.(type) {
+	case []interface{}:
+		if isLambda(lambdaBody) {
+			return apply(append(append([]interface{}{}, lambdaBody), args...))
+		} else {
+			return eval(lambdaBody)
+		}
+	}
+
+	return lambdaBody
+}
+
+func isLambda(x interface{}) bool {
+	if list, ok := x.([]interface{}); ok {
+		if str, ok := list[0].(string); ok {
+			if str == "lambda" {
+				return true
 			}
 		}
-
-	case "print":
-		var sb strings.Builder
-		for _, e := range args {
-			sb.WriteString(fmt.Sprint(eval(e)))
-		}
-		s := sb.String()
-		fmt.Print(s)
-		return s
-
-	case "+":
-		return args[0].(float64) + args[1].(float64)
-
-	case "set":
-		symbolTable[args[0].(string)] = args[1]
-		return args[1]
-
-	case "get":
-		return symbolTable[args[0].(string)]
-
-	case "dump":
-		return fmt.Sprintf("%+v\n", symbolTable)
 	}
-	panic("funcall fell through")
+	return false
+}
+
+func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interface{} {
+	if list == nil {
+		return nil
+	}
+	switch list.(type) {
+	case []interface{}:
+		for i := range list.([]interface{}) {
+			list.([]interface{})[i] = listWalkSub(list.([]interface{})[i], arg, newarg)
+		}
+	case interface{}:
+		if list == arg {
+			list = newarg
+		}
+	}
+	return list
+}
+
+func applyBif(list []interface{}) interface{} {
+	switch list[0].(string) {
+	case "print":
+		n, err := fmt.Println(list[1:])
+		return append([]interface{}{}, n, err)
+	case "lambda":
+		return list
+	}
+	panic("applyBif fell off")
 }

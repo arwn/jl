@@ -1,8 +1,0 @@
-["program",
-    ["set", "name", "arwn"],
-    ["print", 
-        "my name is ", 
-        ["get", "name"], 
-        " and I am ", 
-        ["+", 10, 2], 
-        " years old.\n"]]
