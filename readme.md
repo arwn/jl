@@ -1,11 +1,16 @@
 # What?
 ```json
-> ["print", 123, 321]
-[123 321]
-$it = [10 <nil>]
-> [["lambda", ["y"], ["lambda", ["x"], ["print", "x", "y"]]], 321, 123]
-[321 321]
-$it = [10 <nil>]
+> ["print", 1, 2, 3]
+1 2 3
+$it = [6 <nil>]
+> [["lambda", ["x"], ["print", 1, "x", 3]], 2]
+1 2 3
+$it = [6 <nil>]
+> [["lambda", ["x"], ["lambda", ["y"], ["print", "x", "y"]], 1], 2]
+$it = [lambda [y] [print 2 y]]
+> [["lambda", ["x"], [["lambda", ["y"], ["print", "x", "y"]], 1]], 2]
+2 1
+$it = [4 <nil>]
 > 
 ```
 
