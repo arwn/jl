@@ -7,7 +7,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"strings"
 )
 
@@ -122,6 +121,7 @@ func apply(list []interface{}) interface{} {
 			}
 		case []interface{}: // recursive list
 			list0[0] = eval(list0)
+			list[0] = list0
 			return eval(list0)
 		}
 
@@ -136,34 +136,23 @@ func apply(list []interface{}) interface{} {
 	panic("apply fell off")
 }
 
+// takes a lambda, and applies it to (cdr list)
 func applyLambda(list []interface{}) interface{} {
 	lambda := list[0].([]interface{})
-	args := list[1:]
+	cdr := list[1:]
 
 	lambdaArgs := lambda[1].([]interface{})
 	lambdaBody := lambda[2]
 
 	for i, arg := range lambdaArgs {
-		if lambda[0].(string) == "lambda" {
-			args[i] = eval(args[i])
-		}
-		lambdaBody = listWalkSub(lambdaBody, arg, args[i])
+		cdr[i] = eval(cdr[i])
+		lambdaBody = listWalkSub(lambdaBody, arg, cdr[i])
 	}
 
 	return eval(lambdaBody)
 }
 
-func isLambda(x interface{}) bool {
-	if list, ok := x.([]interface{}); ok {
-		if str, ok := list[0].(string); ok {
-			if str == "lambda" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
+// recursively subsitutes every instance of `arg` with `newarg` in `list`
 func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interface{} {
 	if list == nil {
 		return nil
@@ -195,8 +184,6 @@ func applyBif(list []interface{}) interface{} {
 		return list[1]
 	case "apply":
 		return apply(eval(list[1]).([]interface{}))
-	case "macro":
-		return list
 	case "assert":
 		ok := eval(list[1]) != nil
 		if !ok {
@@ -219,10 +206,12 @@ func applyBif(list []interface{}) interface{} {
 		symbolTable[list[1].(string)] = eval(list[2])
 		return list[2]
 	}
-	fmt.Printf("could not find function `%v`", list[0])
+	fmt.Printf("could not find function `%v`\n", list[0])
 	return nil
 }
 
+// similar does a deep compare of any two objects and determines if
+// they share the same structure and the same values
 func similar(a interface{}, b interface{}) bool {
 	switch a.(type) {
 	case []interface{}:
@@ -239,15 +228,6 @@ func similar(a interface{}, b interface{}) bool {
 		}
 	case interface{}:
 		return a == b
-	}
-	return true
-}
-
-func validLambdaForm(x interface{}) bool {
-	list, ok := x.([]interface{})
-	if !ok || len(list) != 3 || list[0] != "lambda" ||
-		reflect.TypeOf(list[1]).Kind() != reflect.Slice {
-		return false
 	}
 	return true
 }
