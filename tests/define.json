@@ -1,0 +1,17 @@
+["program",
+    ["define", "x", true],
+    ["assert=", "x", true],
+
+    ["define", "x", ["lambda", [], false]],
+    ["assert=", "x", ["lambda", [], false]],
+    ["assert=", ["x"], false],
+
+    ["define", "f", ["lambda", ["x"], "x"]],
+    ["assert=", "f", ["lambda",["x"],"x"]],
+    ["assert=", ["f", true], true],
+    ["assert=", ["f", false], false],
+    ["assert=", ["f", {"foo": "uwu"}], {"foo": "uwu"}],
+
+    ["define", "x", {}],
+    ["define", "y", {}],
+    ["assert=", "x", "y"]]

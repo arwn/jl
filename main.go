@@ -21,6 +21,7 @@ var runMode int
 
 func main() {
 	var reader *bufio.Reader
+	symbolTable = make(map[string]interface{})
 
 	if len(os.Args) == 1 {
 		runMode = interactive
@@ -214,6 +215,9 @@ func applyBif(list []interface{}) interface{} {
 			done = eval(e)
 		}
 		return done
+	case "define":
+		symbolTable[list[1].(string)] = eval(list[2])
+		return list[2]
 	}
 	fmt.Printf("could not find function `%v`", list[0])
 	return nil
@@ -224,6 +228,12 @@ func similar(a interface{}, b interface{}) bool {
 	case []interface{}:
 		for i := range a.([]interface{}) {
 			if !similar(a.([]interface{})[i], b.([]interface{})[i]) {
+				return false
+			}
+		}
+	case map[string]interface{}:
+		for i := range a.(map[string]interface{}) {
+			if !similar(a.(map[string]interface{})[i], b.(map[string]interface{})[i]) {
 				return false
 			}
 		}
