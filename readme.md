@@ -11,6 +11,9 @@ $it = [lambda [y] [print 2 y]]
 > [["lambda", ["x"], [["lambda", ["y"], ["print", "x", "y"]], 1]], 2]
 2 1
 $it = [4 <nil>]
+> [["macro", ["b", "x", "y"], ["b", ["quote", "x"], ["quote", "y"]]], ["lambda", ["t", "f"], "t"], ["print", 1], ["print", 2]]
+1
+$it = [2,null]
 > 
 ```
 

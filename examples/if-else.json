@@ -1,0 +1,5 @@
+[["macro", ["b", "x", "y"], 
+    ["b", ["quote", "x"], ["quote", "y"]]],
+  ["lambda", ["t", "f"], "t"],
+  ["print", 1],
+  ["print", 2]]

@@ -125,7 +125,12 @@ func apply(list []interface{}) interface{} {
 	}
 	switch list[0].(type) {
 	case []interface{}:
-		return applyLambda(list)
+		switch list[0].([]interface{})[0].(string) {
+		case "lambda":
+			return applyLambda(list)
+		case "macro":
+			return applyLambda(list)
+		}
 	case string:
 		str := symbolTable[list[0].(string)]
 		if str != nil {
@@ -138,10 +143,6 @@ func apply(list []interface{}) interface{} {
 }
 
 func applyLambda(list []interface{}) interface{} {
-	if !validLambdaForm(list[0]) {
-		handleUserError(errors.New(fmt.Sprintf("bad lambda form in `%v`", list)))
-		return nil
-	}
 	lambda := list[0].([]interface{})
 	args := list[1:]
 
@@ -149,6 +150,9 @@ func applyLambda(list []interface{}) interface{} {
 	lambdaBody := lambda[2]
 
 	for i, arg := range lambdaArgs {
+		if lambda[0].(string) == "lambda" {
+			args[i] = eval(args[i])
+		}
 		lambdaBody = listWalkSub(lambdaBody, arg, args[i])
 	}
 
@@ -206,6 +210,8 @@ func applyBif(list []interface{}) interface{} {
 		return list[1]
 	case "eval":
 		return eval(eval(list[1]))
+	case "macro":
+		return list
 	}
 	handleUserError(errors.New(fmt.Sprintf("could not find function `%v`", list[0])))
 	return nil
