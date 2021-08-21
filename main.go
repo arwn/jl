@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -120,15 +121,14 @@ func eval(source interface{}) interface{} {
 }
 
 func apply(list []interface{}) interface{} {
+	log.Println("apply", list)
 	if len(list) < 1 {
 		return nil
 	}
 	switch list[0].(type) {
 	case []interface{}:
 		switch list[0].([]interface{})[0].(string) {
-		case "lambda":
-			return applyLambda(list)
-		case "macro":
+		case "lambda", "macro":
 			return applyLambda(list)
 		}
 	case string:
@@ -143,6 +143,7 @@ func apply(list []interface{}) interface{} {
 }
 
 func applyLambda(list []interface{}) interface{} {
+	log.Println("applying", list)
 	lambda := list[0].([]interface{})
 	args := list[1:]
 
@@ -155,11 +156,7 @@ func applyLambda(list []interface{}) interface{} {
 		}
 		lambdaBody = listWalkSub(lambdaBody, arg, args[i])
 	}
-
-	switch lambdaBody.(type) {
-	case []interface{}:
-		return eval(lambdaBody)
-	}
+	log.Println("got", lambdaBody)
 
 	return lambdaBody
 }
@@ -180,13 +177,13 @@ func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interfac
 		return nil
 	}
 	switch list.(type) {
+	case string:
+		if list == arg {
+			list = newarg
+		}
 	case []interface{}:
 		for i := range list.([]interface{}) {
 			list.([]interface{})[i] = listWalkSub(list.([]interface{})[i], arg, newarg)
-		}
-	case interface{}:
-		if list == arg {
-			list = newarg
 		}
 	}
 	return list
@@ -208,8 +205,8 @@ func applyBif(list []interface{}) interface{} {
 		return list
 	case "quote":
 		return list[1]
-	case "eval":
-		return eval(eval(list[1]))
+	case "apply":
+		return apply(eval(list[1]).([]interface{}))
 	case "macro":
 		return list
 	}
