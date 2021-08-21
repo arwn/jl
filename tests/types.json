@@ -1,0 +1,5 @@
+["program",
+    ["assert", 1],
+    ["assert", true],
+    ["assert", {}],
+    ["assert", ["lambda", [], []]]]

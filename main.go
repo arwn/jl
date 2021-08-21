@@ -3,11 +3,9 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -67,13 +65,7 @@ func readLine(r *bufio.Reader) interface{} {
 	var js interface{}
 	err = json.Unmarshal([]byte(line), &js)
 	if err != nil {
-		switch err.(type) {
-		case *json.SyntaxError:
-			handleUserError(err)
-			return nil
-		}
-		fmt.Println(reflect.TypeOf(err))
-		panic(err)
+		fmt.Println(err)
 	}
 	return js
 }
@@ -85,6 +77,9 @@ func readAll(r *bufio.Reader) interface{} {
 	}
 	var js interface{}
 	err = json.Unmarshal(crap, &js)
+	if err != nil {
+		die(err.Error(), 1)
+	}
 	return js
 }
 
@@ -104,33 +99,31 @@ func eval(source interface{}) interface{} {
 	switch source.(type) {
 	case string:
 		return symbolTable[source.(string)]
-	case float64:
-		return source
-	case func(interface{}) interface{}:
-		return source
-	case map[string]interface{}:
-		return source
 	case []interface{}:
 		return apply(source.([]interface{}))
-	case nil:
-		return nil
+	default:
+		return source
 	}
-	fmt.Printf("value: %v", source)
-	fmt.Printf(": %s\n", reflect.TypeOf((source)))
-	panic("eval fell off")
 }
 
 func apply(list []interface{}) interface{} {
-	log.Println("apply", list)
 	if len(list) < 1 {
 		return nil
 	}
 	switch list[0].(type) {
-	case []interface{}:
-		switch list[0].([]interface{})[0].(string) {
-		case "lambda", "macro":
-			return applyLambda(list)
+	case []interface{}: // a list to be evaluated
+		list0 := list[0].([]interface{})
+		switch list0[0].(type) {
+		case string:
+			switch list0[0].(string) {
+			case "lambda", "macro":
+				return applyLambda(list)
+			}
+		case []interface{}: // recursive list
+			list0[0] = eval(list0)
+			return eval(list0)
 		}
+
 	case string:
 		str := symbolTable[list[0].(string)]
 		if str != nil {
@@ -143,7 +136,6 @@ func apply(list []interface{}) interface{} {
 }
 
 func applyLambda(list []interface{}) interface{} {
-	log.Println("applying", list)
 	lambda := list[0].([]interface{})
 	args := list[1:]
 
@@ -156,9 +148,8 @@ func applyLambda(list []interface{}) interface{} {
 		}
 		lambdaBody = listWalkSub(lambdaBody, arg, args[i])
 	}
-	log.Println("got", lambdaBody)
 
-	return lambdaBody
+	return eval(lambdaBody)
 }
 
 func isLambda(x interface{}) bool {
@@ -198,10 +189,6 @@ func applyBif(list []interface{}) interface{} {
 		n, err := jprint(list[1:]...)
 		return append([]interface{}{}, n, err)
 	case "lambda":
-		if !validLambdaForm(list) {
-			handleUserError(errors.New(fmt.Sprintf("bad lambda form in `%v`", list)))
-			return nil
-		}
 		return list
 	case "quote":
 		return list[1]
@@ -209,9 +196,41 @@ func applyBif(list []interface{}) interface{} {
 		return apply(eval(list[1]).([]interface{}))
 	case "macro":
 		return list
+	case "assert":
+		ok := eval(list[1]) != nil
+		if !ok {
+			panic(fmt.Sprintf("assert= failed for %v", list[1]))
+		}
+		return true
+	case "assert=":
+		a, b := eval(list[1]), eval(list[2])
+		if !similar(a, b) {
+			panic(fmt.Sprintf("assert= failed for [%v, %v]", list[1], list[2]))
+		}
+		return true
+	case "program":
+		var done interface{}
+		for _, e := range list[1:] {
+			done = eval(e)
+		}
+		return done
 	}
-	handleUserError(errors.New(fmt.Sprintf("could not find function `%v`", list[0])))
+	fmt.Printf("could not find function `%v`", list[0])
 	return nil
+}
+
+func similar(a interface{}, b interface{}) bool {
+	switch a.(type) {
+	case []interface{}:
+		for i := range a.([]interface{}) {
+			if !similar(a.([]interface{})[i], b.([]interface{})[i]) {
+				return false
+			}
+		}
+	case interface{}:
+		return a == b
+	}
+	return true
 }
 
 func validLambdaForm(x interface{}) bool {
@@ -221,11 +240,4 @@ func validLambdaForm(x interface{}) bool {
 		return false
 	}
 	return true
-}
-
-func handleUserError(err error) {
-	fmt.Println("err:", err)
-	if runMode == script {
-		die("error in source file", 1)
-	}
 }

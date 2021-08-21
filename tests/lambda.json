@@ -1,0 +1,20 @@
+["program",
+    ["assert=", [["lambda", [], 0]], 0],
+    ["assert=", [["lambda", ["x"], 1], 1], 1],
+    ["assert=", [["lambda", ["x", "y"], "y"], 1, 2], 2],
+    ["assert=", [["lambda", ["x", "y"], "x"], 1, 2], 1],
+
+    ["quote", "recursive lambda tests"],
+    ["lambda", [], ["lambda", [], true]],
+    ["assert=", [["lambda", [], ["lambda", [], true]]], ["lambda", [], true]],
+    ["assert=", [[["lambda", [], ["lambda", [], 123]]]], 123],
+    ["assert=", [[[["lambda", [], ["lambda", [], ["lambda", [], 123]]]]]], 123],
+
+    ["quote", "arguments"],
+    ["assert=", [["lambda", ["x"], "x"], 2], 2],
+    ["assert=", [["lambda", ["x"], "x"], 1], 1],
+    ["assert=", [["lambda", ["x", "y"], "x"], 1, 2], 1],
+    ["assert=", [["lambda", ["x", "y"], "y"], 1, 2], 2],
+
+    ["quote", "challenging"],
+    ["assert=", [["lambda", ["x"], [["lambda", ["y"], ["assert=", "x", "y"]], 1]], 1], true]]
