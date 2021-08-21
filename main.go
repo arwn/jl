@@ -202,6 +202,10 @@ func applyBif(list []interface{}) interface{} {
 			return nil
 		}
 		return list
+	case "quote":
+		return list[1]
+	case "eval":
+		return eval(eval(list[1]))
 	}
 	handleUserError(errors.New(fmt.Sprintf("could not find function `%v`", list[0])))
 	return nil
