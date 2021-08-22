@@ -17,4 +17,5 @@
     ["assert=", [["lambda", ["x", "y"], "y"], 1, 2], 2],
 
     ["quote", "challenging"],
-    ["assert=", [["lambda", ["x"], [["lambda", ["y"], ["assert=", "x", "y"]], 1]], 1], true]]
+    ["assert=", [["lambda", ["x"], [["lambda", ["y"], ["assert=", "x", "y"]], 1]], 1], true],
+    ["assert=", [[["lambda", [], ["lambda", ["x"], "x"]]], true], true]]

@@ -21,6 +21,7 @@ var runMode int
 func main() {
 	var reader *bufio.Reader
 	symbolTable = make(map[string]interface{})
+	symbolTable["lambda"] = "lambda"
 
 	if len(os.Args) == 1 {
 		runMode = interactive
@@ -110,24 +111,24 @@ func apply(list []interface{}) interface{} {
 	if len(list) < 1 {
 		return nil
 	}
+
 	switch list[0].(type) {
 	case []interface{}: // a list to be evaluated
+		for i := range list {
+			list[i] = eval(list[i])
+		}
 		list0 := list[0].([]interface{})
 		switch list0[0].(type) {
 		case string:
 			switch list0[0].(string) {
-			case "lambda", "macro":
+			case "lambda":
 				return applyLambda(list)
 			}
-		case []interface{}: // recursive list
-			list0[0] = eval(list0)
-			list[0] = list0
-			return eval(list0)
 		}
 
 	case string:
 		str := symbolTable[list[0].(string)]
-		if str != nil {
+		if str != nil && str != "lambda" {
 			list[0] = str
 			return apply(list)
 		}
