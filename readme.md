@@ -10,11 +10,6 @@ $it = [6,null]
 $it = ["lambda",["y"],["print",2,"y"]]
 > [[["lambda", ["x"], ["lambda", ["y"], ["print", "x", "y"]], 1], 2]]
 2 2
-> ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "x"]]]], ["print", {"hello":"world"}]]]
-$it = [["macro",["x"],["macro",["y"],["print",{"hello":"world"}]]],["print",{"hello":"world"}]]
-> ["my-macro", ["define", "foo", 12]]
-{"hello":"world"}
-$it = [18,null]
 > ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "y"]]]], ["print", {"hello":"world"}]]]
 $it = [["macro",["x"],["macro",["y"],"y"]],["print",{"hello":"world"}]]
 > ["my-macro", ["define", "foo", 12]]
