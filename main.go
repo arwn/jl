@@ -69,6 +69,16 @@ func readLine(r *bufio.Reader) interface{} {
 	return js
 }
 
+func readFile(filename string) interface{} {
+	file, err := os.Open(filename)
+	if err != nil {
+		e(err)
+	}
+	reader := bufio.NewReader(file)
+	source := readAll(reader)
+	return source
+}
+
 func readAll(r *bufio.Reader) interface{} {
 	crap, err := ioutil.ReadAll(r)
 	if err != nil {
@@ -174,10 +184,11 @@ func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interfac
 func applyBif(list []interface{}) interface{} {
 	switch list[0].(string) {
 	case "print":
+		vals := make([]interface{}, len(list))
 		for i := range list {
-			list[i] = eval(list[i])
+			vals[i] = eval(list[i])
 		}
-		n, err := jprint(list[1:]...)
+		n, err := jprint(vals[1:]...)
 		return append([]interface{}{}, n, err)
 	case "lambda", "macro":
 		return list
@@ -206,6 +217,8 @@ func applyBif(list []interface{}) interface{} {
 	case "define":
 		symbolTable[list[1].(string)] = eval(list[2])
 		return list[2]
+	case "json.loads":
+		return eval(readFile(list[1].(string)))
 	}
 	msg := fmt.Sprintf("could not find function `%v`\n", list[0])
 	e(errors.New(msg))
