@@ -10,10 +10,17 @@ $it = [6,null]
 $it = ["lambda",["y"],["print",2,"y"]]
 > [[["lambda", ["x"], ["lambda", ["y"], ["print", "x", "y"]], 1], 2]]
 2 2
-$it = [4,null]
-> [["macro", ["b", "x", "y"], ["b", ["quote", "x"], ["quote", "y"]]], ["lambda", ["t", "f"], "t"], ["print", 1], ["print", 2]]
-1
-$it = [2,null]
+> ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "x"]]]], ["print", {"hello":"world"}]]]
+$it = [["macro",["x"],["macro",["y"],["print",{"hello":"world"}]]],["print",{"hello":"world"}]]
+> ["my-macro", ["define", "foo", 12]]
+{"hello":"world"}
+$it = [18,null]
+> ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "y"]]]], ["print", {"hello":"world"}]]]
+$it = [["macro",["x"],["macro",["y"],"y"]],["print",{"hello":"world"}]]
+> ["my-macro", ["define", "foo", 12]]
+$it = 12
+> ["assert=", "foo", 12]
+$it = true
 > 
 ```
 

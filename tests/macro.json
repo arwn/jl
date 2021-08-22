@@ -1,0 +1,24 @@
+["program",
+    ["assert=", ["macro", [], true], ["macro", [], true]],
+    ["assert=", ["macro", ["x"], "x"], ["macro", ["x"], "x"]],
+    ["assert=", [["macro", ["x", "y"], "x"], true, false], true],
+
+    ["quote", "side effects"],
+    [["macro", ["x", "y"], "x"], ["define", "var", true], ["define", "var", false]],
+    ["assert=", "var", true],
+    [["macro", ["x", "y"], "x"], ["define", "var2", true], ["define", "var", false]],
+    ["assert=", "var2", true],
+    ["assert=", "var", true],
+
+    [[["macro", [], ["macro", ["x", "y"], "x"]]], ["define", "var", true], ["define", "var", false]],
+    ["assert=", "var", true],
+    [[["macro", [], ["macro", ["x", "y"], "y"]]], ["define", "var", true], ["define", "var", false]],
+    ["assert=", "var", false],
+
+    ["quote" ,"hard!"],
+    ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "x"]]]], ["define", "foo", true]]],
+    ["my-macro", ["define", "foo", 12]],
+    ["assert=", "foo", true],
+    ["define", "my-macro", [[["macro", [], ["macro", ["x"], ["macro", ["y"], "y"]]]], ["define", "foo", true]]],
+    ["my-macro", ["define", "foo", 12]],
+    ["assert=", "foo", 12]]

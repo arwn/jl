@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 )
@@ -16,15 +18,16 @@ const (
 )
 
 var symbolTable map[string]interface{}
-var runMode int
+var runmode int
 
 func main() {
 	var reader *bufio.Reader
 	symbolTable = make(map[string]interface{})
 	symbolTable["lambda"] = "lambda"
+	symbolTable["macro"] = "macro"
 
 	if len(os.Args) == 1 {
-		runMode = interactive
+		runmode = interactive
 		reader = bufio.NewReader(os.Stdin)
 		for {
 			fmt.Print("> ")
@@ -34,31 +37,26 @@ func main() {
 			jprint(x)
 		}
 	} else if len(os.Args) == 2 {
-		runMode = script
+		runmode = script
 		file, err := os.Open(os.Args[1])
 		if err != nil {
-			die(err.Error(), 1)
+			e(err)
 		}
 		reader = bufio.NewReader(file)
 		source := readAll(reader)
 		eval(source)
 	} else {
-		fmt.Printf("too many args: %s\n", os.Args[1])
-		die(fmt.Sprintf("usage: %s [filename]", os.Args[0]), 1)
+		err := errors.New(fmt.Sprintf("usage: %s [filename]", os.Args[0]))
+		e(err)
 	}
 
 }
-
-func die(msg string, opcode int) {
-	fmt.Printf("\n%s\n", msg)
-	os.Exit(opcode)
-}
-
 func readLine(r *bufio.Reader) interface{} {
 	line, err := r.ReadString('\n')
 	if err != nil {
 		if err == io.EOF {
-			die("goodbye :)", 0)
+			fmt.Println("goodbye :)")
+			os.Exit(0)
 		}
 		panic(err)
 	}
@@ -79,7 +77,7 @@ func readAll(r *bufio.Reader) interface{} {
 	var js interface{}
 	err = json.Unmarshal(crap, &js)
 	if err != nil {
-		die(err.Error(), 1)
+		e(err)
 	}
 	return js
 }
@@ -114,31 +112,31 @@ func apply(list []interface{}) interface{} {
 
 	switch list[0].(type) {
 	case []interface{}: // a list to be evaluated
-		for i := range list {
-			list[i] = eval(list[i])
-		}
+		list[0] = eval(list[0])
+		macro := isMacro(list[0])
 		list0 := list[0].([]interface{})
 		switch list0[0].(type) {
 		case string:
 			switch list0[0].(string) {
-			case "lambda":
-				return applyLambda(list)
+			case "lambda", "macro":
+				return applyLambda(list, macro)
 			}
 		}
 
 	case string:
 		str := symbolTable[list[0].(string)]
-		if str != nil && str != "lambda" {
+		if str != nil && str != "lambda" && str != "macro" {
 			list[0] = str
 			return apply(list)
 		}
 		return applyBif(list)
 	}
+	log.Println(list)
 	panic("apply fell off")
 }
 
 // takes a lambda, and applies it to (cdr list)
-func applyLambda(list []interface{}) interface{} {
+func applyLambda(list []interface{}, macro bool) interface{} {
 	lambda := list[0].([]interface{})
 	cdr := list[1:]
 
@@ -146,7 +144,9 @@ func applyLambda(list []interface{}) interface{} {
 	lambdaBody := lambda[2]
 
 	for i, arg := range lambdaArgs {
-		cdr[i] = eval(cdr[i])
+		if !macro {
+			cdr[i] = eval(cdr[i])
+		}
 		lambdaBody = listWalkSub(lambdaBody, arg, cdr[i])
 	}
 
@@ -179,7 +179,7 @@ func applyBif(list []interface{}) interface{} {
 		}
 		n, err := jprint(list[1:]...)
 		return append([]interface{}{}, n, err)
-	case "lambda":
+	case "lambda", "macro":
 		return list
 	case "quote":
 		return list[1]
@@ -207,7 +207,8 @@ func applyBif(list []interface{}) interface{} {
 		symbolTable[list[1].(string)] = eval(list[2])
 		return list[2]
 	}
-	fmt.Printf("could not find function `%v`\n", list[0])
+	msg := fmt.Sprintf("could not find function `%v`\n", list[0])
+	e(errors.New(msg))
 	return nil
 }
 
@@ -231,4 +232,24 @@ func similar(a interface{}, b interface{}) bool {
 		return a == b
 	}
 	return true
+}
+
+func isMacro(x interface{}) bool {
+	l, ok := x.([]interface{})
+	if !ok {
+		return false
+	}
+
+	fst, ok := l[0].(string)
+	if !ok {
+		return false
+	}
+	return fst == "macro"
+}
+
+func e(err error) {
+	fmt.Println(err)
+	if runmode == script {
+		os.Exit(1)
+	}
 }
