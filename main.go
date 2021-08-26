@@ -122,22 +122,26 @@ func apply(list []interface{}) interface{} {
 
 	switch list[0].(type) {
 	case []interface{}: // a list to be evaluated
-		list[0] = eval(list[0])
-		macro := isMacro(list[0])
-		list0 := list[0].([]interface{})
+
+		evaled := eval(list[0])
+		macro := isMacro(evaled)
+		list0 := evaled.([]interface{})
 		switch list0[0].(type) {
 		case string:
 			switch list0[0].(string) {
 			case "lambda", "macro":
-				return applyLambda(list, macro)
+				newList := append([]interface{}{}, evaled)
+				newList = append(newList, list[1:]...)
+				return applyLambda(newList, macro)
 			}
 		}
 
 	case string:
 		str := symbolTable[list[0].(string)]
 		if str != nil && str != "lambda" && str != "macro" {
-			list[0] = str
-			return apply(list)
+			newList := append([]interface{}{}, str)
+			newList = append(newList, list[1:]...)
+			return apply(newList)
 		}
 		return applyBif(list)
 	}
@@ -148,10 +152,10 @@ func apply(list []interface{}) interface{} {
 // takes a lambda, and applies it to (cdr list)
 func applyLambda(list []interface{}, macro bool) interface{} {
 	lambda := list[0].([]interface{})
-	cdr := list[1:]
+	cdr := duplicate(list[1:]).([]interface{})
 
-	lambdaArgs := lambda[1].([]interface{})
-	lambdaBody := lambda[2]
+	lambdaArgs := duplicate(lambda[1]).([]interface{})
+	lambdaBody := duplicate(lambda[2])
 
 	for i, arg := range lambdaArgs {
 		if !macro {
@@ -179,6 +183,21 @@ func listWalkSub(list interface{}, arg interface{}, newarg interface{}) interfac
 		}
 	}
 	return list
+}
+
+func duplicate(x interface{}) interface{} {
+	switch x.(type) {
+	case []interface{}:
+		oldList := x.([]interface{})
+		newList := make([]interface{}, len(oldList))
+		for i := range oldList {
+			newList[i] = duplicate(oldList[i])
+		}
+		return newList
+
+	default:
+		return x
+	}
 }
 
 func applyBif(list []interface{}) interface{} {
