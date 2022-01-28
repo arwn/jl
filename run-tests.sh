@@ -1,7 +1,5 @@
 #!/usr/bin/env sh
 
 go build .
-for test in tests/*; do
-    x=`./jl  $test` || echo "failed: $test"
-done
+find tests -type f -exec ./jl {} \;
 rm jl

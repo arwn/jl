@@ -1,2 +1,1 @@
-["program",
-    ["assert=", 1, 1]]
+["test", true]

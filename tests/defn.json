@@ -1,7 +1,0 @@
-["program",
-    ["json.loads", "stdlib/defn.json"],
-    ["defn", "f", ["x"], ["define", "foo", "x"]],
-    ["f", 12],
-    ["assert=", "foo", 12],
-    ["f", 13],
-    ["assert=", "foo", 13]]

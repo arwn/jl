@@ -9,10 +9,15 @@ import (
 	"os"
 )
 
+var symbols = JLMap{Data: make(map[string]JLObject)}
+var scriptMode = false
+var scriptFileName = "error: file name not set"
+
 func main() {
 	if len(os.Args) == 1 {
 		startRepl()
 	} else {
+		scriptMode = true
 		for _, v := range os.Args[1:] {
 			program := readFile(v)
 			eval(program)
@@ -22,8 +27,8 @@ func main() {
 }
 
 func startRepl() {
+	read := newReader(os.Stdin)
 	for true {
-		read := newReader(os.Stdin)
 		program := read()
 		output := eval(program)
 		jprint(output)
@@ -38,7 +43,10 @@ func newReader(r io.Reader) func() JLObject {
 			panic(err)
 		}
 		var program interface{}
-		json.Unmarshal(input, &program)
+		err = json.Unmarshal(input, &program)
+		if err != nil {
+			return newJLObject(err.Error())
+		}
 		return newJLObject(program)
 	}
 }
@@ -53,9 +61,10 @@ func readFile(filename string) JLObject {
 	if err != nil {
 		panic(err)
 	}
+	scriptFileName = filename
 	return newJLObject(program)
 }
 
 func jprint(o JLObject) {
-	fmt.Println(string(o.String()))
+	fmt.Println(o.String())
 }
