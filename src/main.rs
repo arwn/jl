@@ -186,6 +186,8 @@ fn main() {
         JObject::new_func(vec!["x"], JObject::JSymbol("x".to_string())),
     );
 
+    env.symbols.insert("pi".to_string(), JObject::JNumber(3));
+
     loop {
         let program = read();
         let res = eval(env, &program);
