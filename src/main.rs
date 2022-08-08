@@ -65,9 +65,45 @@ fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject 
     panic!("cant apply {:?} to {:?}\nenv: {:?}", func, args, new_env);
 }
 
+fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
+    if let JObject::JList(l) = o {
+        if l.len() > 1 && l[0] == JObject::JSymbol("unquote".to_string()) {
+            return eval(env, &l[1].clone());
+        }
+        // else we check if anything should be spliced
+        let mut done = Vec::new();
+        for x in &mut l.iter() {
+            if let JObject::JList(l) = x {
+                if let Some(JObject::JSymbol(s)) = l.get(0) {
+                    if s == "splice-unquote" {
+                        done.push(eval(env, &l[1]));
+                    } else {
+                        done.push(x.clone());
+                    }
+                } else {
+                    done.push(x.clone());
+                }
+            } else {
+                done.push(x.clone());
+            }
+        }
+        return JObject::JList(done);
+    }
+    return o.clone();
+}
+
 fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> Option<JObject> {
     return if let JObject::JSymbol(fname) = head {
         match fname.as_str() {
+            "quote" => {
+                assert!(args.len() == 1);
+                Some(args[0].clone())
+            }
+            "quasiquote" => {
+                assert!(args.len() == 1);
+                let walked = quasiwalk(env, &args[0]);
+                Some(walked)
+            }
             "def" => {
                 assert!(args.len() == 2);
                 if let JObject::JSymbol(s) = args[0].clone() {
