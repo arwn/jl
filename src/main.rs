@@ -147,6 +147,10 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
                     None
                 }
             }
+            "crash" => {
+                unsafe { std::ptr::null_mut::<i8>().write(1) };
+                None
+            }
             _ => None,
         }
     } else {
