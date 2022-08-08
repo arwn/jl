@@ -11,20 +11,26 @@ struct Environment {
 
 fn eval<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
     return match o {
-        JObject::JList(l) => match l.len() {
-            0 => o.clone(),
-            1 => {
-                let empty: Vec<JObject> = Vec::new();
-                let new_o = &eval_ast(e, &l[0]);
-                apply(e, new_o, &empty)
+        JObject::JList(l) => {
+            if l.len() == 0 {
+                o.clone()
+            } else {
+                let rest = if l.len() == 1 {
+                    Vec::new()
+                } else {
+                    l.split_first().unwrap().1.to_vec()
+                };
+
+                if let Some(r) = call_builtin(e, &l[0], &rest) {
+                    return r;
+                } else {
+                    let first = eval(e, &l[0]);
+                    let first1 = &eval_ast(e, &first);
+                    let rest1 = &rest.iter().map(|x| eval_ast(e, x)).collect();
+                    return apply(e, first1, rest1);
+                }
             }
-            _n => {
-                let (first, rest) = l.split_first().unwrap();
-                let first1 = &eval_ast(e, first);
-                let rest1 = &rest.iter().map(|x| eval_ast(e, x)).collect();
-                apply(e, first1, rest1)
-            }
-        },
+        }
         _ => eval_ast(e, o),
     };
 }
@@ -59,6 +65,42 @@ fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject 
     panic!("cant apply {:?} to {:?}\nenv: {:?}", func, args, new_env);
 }
 
+fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> Option<JObject> {
+    return if let JObject::JSymbol(fname) = head {
+        match fname.as_str() {
+            "def" => {
+                assert!(args.len() == 2);
+                if let JObject::JSymbol(s) = args[0].clone() {
+                    env.symbols.insert(s, args[1].clone());
+                }
+                Some(args[1].clone())
+            }
+            "f" => {
+                assert!(args.len() == 2);
+                if let JObject::JList(fbody_args) = args[0].clone() {
+                    let argsyms = fbody_args
+                        .iter()
+                        .map(|x| {
+                            if let JObject::JSymbol(s) = x {
+                                s.as_str()
+                            } else {
+                                panic!("can't use {:?} as function arg", x)
+                            }
+                        })
+                        .collect();
+
+                    Some(JObject::new_func(argsyms, args[1].clone()))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+}
+
 fn init() -> Environment {
     let mut env = Environment {
         symbols: HashMap::new(),
@@ -68,6 +110,7 @@ fn init() -> Environment {
         "a-string".to_string(),
         JObject::JString("this is a string".to_string()),
     );
+
     return env;
 }
 
@@ -105,6 +148,13 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_def() {
+        let env = &mut init();
+        eval(env, &json::parse(r#"["def", "e", 3]")"#));
+        assert_eq!(*env.symbols.get("e").unwrap(), JObject::JNumber(3));
+    }
+
+    #[test]
     fn test_func() {
         let env = &mut init();
 
@@ -114,6 +164,17 @@ mod tests {
         let result = apply(env, &func, &args);
 
         assert_eq!(result, JObject::JNumber(32));
+    }
+
+    #[test]
+    fn test_func_literal() {
+        let env = &mut init();
+
+        let prog = eval(env, &json::parse(r#"["f", [], "'hello"]"#));
+        assert_eq!(
+            prog,
+            JObject::new_func(vec![], JObject::JString("hello".to_string())),
+        );
     }
 
     #[test]
@@ -192,6 +253,10 @@ fn main() {
     );
 
     env.symbols.insert("pi".to_string(), JObject::JNumber(3));
+    env.symbols.insert(
+        "pie".to_string(),
+        JObject::JString("3.14159265359".to_string()),
+    );
 
     loop {
         let program = read();

@@ -163,6 +163,41 @@ mod tests {
             parse("[1, 2]"),
             JObject::JList(vec![JObject::JNumber(1), JObject::JNumber(2)])
         );
+
+        assert_eq!(parse("[[]]"), JObject::JList(vec![JObject::JList(vec![])]));
+        assert_eq!(
+            parse("[[[]]]"),
+            JObject::JList(vec![JObject::JList(vec![JObject::JList(vec![])])])
+        );
+        assert_eq!(
+            parse("[[1]]"),
+            JObject::JList(vec![JObject::JList(vec![JObject::JNumber(1)])])
+        );
+        assert_eq!(
+            parse("[[1, 1]]"),
+            JObject::JList(vec![JObject::JList(vec![
+                JObject::JNumber(1),
+                JObject::JNumber(1)
+            ])])
+        );
+        assert_eq!(
+            parse("[[1], 1]"),
+            JObject::JList(vec![
+                JObject::JList(vec![JObject::JNumber(1)]),
+                JObject::JNumber(1)
+            ])
+        );
+        assert_eq!(
+            parse(r#"[["f", ["x"], 1], 1]")"#),
+            JObject::JList(vec![
+                JObject::JList(vec![
+                    JObject::JSymbol("f".to_string()),
+                    JObject::JList(vec![JObject::JSymbol("x".to_string())]),
+                    JObject::JNumber(1)
+                ]),
+                JObject::JNumber(1)
+            ])
+        );
     }
 }
 
