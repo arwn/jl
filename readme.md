@@ -1,11 +1,11 @@
 It's like json but with functions.
 
 ```
-; "f"
+; ["def", "id", ["f", ["x"], "x"]]
 JFunc { arguments: ["x"], definition: JSymbol("x") }
-; "pi"
+; ["def", "pi", 3]
 JNumber(3)
-; ["f", "pi"]
+; ["id", "pi"]
 JNumber(3)
 ;
 ```

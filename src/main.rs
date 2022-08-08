@@ -71,9 +71,13 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
             "def" => {
                 assert!(args.len() == 2);
                 if let JObject::JSymbol(s) = args[0].clone() {
-                    env.symbols.insert(s, args[1].clone());
+                    let body = eval(env, &args[1]);
+                    env.symbols.insert(s, body.clone());
+
+                    Some(body)
+                } else {
+                    panic!("you can't assign a non-string to a value");
                 }
-                Some(args[1].clone())
             }
             "f" => {
                 assert!(args.len() == 2);
