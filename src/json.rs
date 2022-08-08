@@ -1,6 +1,7 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum JObject {
     JNull,
+    JBool(bool),
     JNumber(i64),
     JString(String),
     JList(Vec<JObject>),
@@ -29,6 +30,7 @@ impl Parser {
         return self
             .number()
             .or_else(|| self.null())
+            .or_else(|| self.bool())
             .or_else(|| self.string())
             .or_else(|| self.symbol())
             .or_else(|| self.list());
@@ -111,6 +113,20 @@ impl Parser {
         }
     }
 
+    fn bool(&mut self) -> Option<JObject> {
+        let t: String = self.text.iter().skip(self.i).take(4).collect();
+        let f: String = self.text.iter().skip(self.i).take(5).collect();
+        if t == "true" {
+            self.i += 4;
+            return Some(JObject::JBool(true));
+        } else if f == "false" {
+            self.i += 5;
+            return Some(JObject::JBool(false));
+        } else {
+            return None;
+        }
+    }
+
     fn symbol(&mut self) -> Option<JObject> {
         if let Some((a, b)) = self.peek2() {
             if a == '"' && b != '\'' {
@@ -154,6 +170,12 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_bool() {
+        assert_eq!(parse("true"), JObject::JBool(true));
+        assert_eq!(parse("false"), JObject::JBool(false));
+    }
 
     #[test]
     fn test_parse_list() {

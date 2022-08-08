@@ -98,11 +98,33 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
                     None
                 }
             }
+            "if" => {
+                assert!(args.len() == 3);
+                let a = &args[..];
+                if let &[b, t, f] = &a {
+                    if truthy(b) {
+                        Some(t.clone())
+                    } else {
+                        Some(f.clone())
+                    }
+                } else {
+                    None
+                }
+            }
             _ => None,
         }
     } else {
         None
     };
+}
+
+fn truthy(o: &JObject) -> bool {
+    match o {
+        JObject::JNull => false,
+        JObject::JBool(false) => false,
+        JObject::JList(l) => l.len() > 0,
+        _ => true,
+    }
 }
 
 fn init() -> Environment {
