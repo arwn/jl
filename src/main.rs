@@ -182,7 +182,12 @@ fn main() {
     let env = &mut init();
 
     env.symbols.insert(
-        "f".to_string(),
+        "f0".to_string(),
+        JObject::new_func(vec![], JObject::JNumber(12)),
+    );
+
+    env.symbols.insert(
+        "f1".to_string(),
         JObject::new_func(vec!["x"], JObject::JSymbol("x".to_string())),
     );
 

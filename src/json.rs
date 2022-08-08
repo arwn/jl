@@ -1,7 +1,3 @@
-use std::iter::Enumerate;
-use std::iter::Peekable;
-use std::str::Chars;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum JObject {
     JNull,
@@ -18,136 +14,140 @@ pub enum JObject {
 }
 
 pub fn parse(line: &str) -> JObject {
-    Parser::parse(&mut Parser {
-        text: line.chars().enumerate().peekable(),
-    })
+    let x = line.to_string().chars().collect();
+    Parser::parse(&mut Parser { text: x, i: 0 }).unwrap_or(JObject::JNull)
 }
 
-struct Parser<'a> {
-    text: Peekable<Enumerate<Chars<'a>>>,
+struct Parser {
+    text: Vec<char>,
+    i: usize,
 }
 
-impl Parser<'_> {
-    fn parse(&mut self) -> JObject {
+impl Parser {
+    fn parse(&mut self) -> Option<JObject> {
+        self.ws();
         return self
-            .ws()
-            .or_else(|| self.number())
+            .number()
             .or_else(|| self.null())
+            .or_else(|| self.string())
             .or_else(|| self.symbol())
-            .or_else(|| self.list())
-            .unwrap_or(JObject::JString("could not parse input".to_string()));
+            .or_else(|| self.list());
     }
 
     fn peek(&mut self) -> Option<char> {
-        return self.text.peek().map(|(_, c)| *c);
+        self.text.get(self.i).map(|c| *c)
+    }
+
+    fn peek2(&mut self) -> Option<(char, char)> {
+        let first = self.text.get(self.i);
+        let second = self.text.get(self.i + 1);
+        return first.and_then(|c1| second.map(|c2| (*c1, *c2)));
     }
 
     fn ws(&mut self) -> Option<JObject> {
         loop {
             if self.peek().unwrap_or('e').is_whitespace() {
-                self.text.next();
+                self.i += 1;
             } else {
                 break;
             }
         }
-        None
+        return None;
     }
 
     fn list(&mut self) -> Option<JObject> {
-        if let Some(c) = self.peek() {
-            if c != '[' {
-                return None;
-            } else {
-                self.text.next();
-            }
-        }
+        let mut builder = Vec::new();
 
-        let mut result = Vec::new();
+        if let Some('[') = self.peek() {
+            self.i += 1;
+        } else {
+            return None;
+        }
 
         loop {
             self.ws();
-            if let Some(first) = self.number().or_else(|| self.symbol()) {
-                result.push(first);
+            if let Some(element) = self.parse() {
+                builder.push(element);
+                self.ws();
+                if let Some(',') = self.peek() {
+                    self.i += 1;
+                } else {
+                    break;
+                }
             } else {
                 break;
             }
-
-            self.ws();
-            if let Some(c) = self.peek() {
-                if c == ',' {
-                    self.text.next();
-                } else if c == ']' {
-                    break;
-                } else {
-                    panic!("invalid list syntax 1: {:?}", c)
-                }
-            } else {
-                panic!("invalid list syntax 2");
-            }
         }
 
-        return Some(JObject::JList(result));
+        self.ws();
+        if let Some(']') = self.peek() {
+            self.i += 1;
+        } else {
+            panic!("Invalid list in {:?} at index {:?}", self.text, self.i);
+        }
+
+        return Some(JObject::JList(builder));
     }
 
     fn number(&mut self) -> Option<JObject> {
-        if self.peek().unwrap_or('e').is_numeric() {
-            if let Some((_, c)) = self.text.next() {
-                let n = c.to_string().parse().unwrap();
-                return Some(JObject::JNumber(n));
-            }
-        }
-        return None;
+        return self
+            .text
+            .get(self.i)
+            .and_then(|c| c.to_string().parse().ok())
+            .map(|n| {
+                self.i += 1;
+                JObject::JNumber(n)
+            });
     }
 
     fn null(&mut self) -> Option<JObject> {
-        if let Some(_) = self
-            .char('n')
-            .and_then(|_| self.char('u'))
-            .and_then(|_| self.char('l'))
-            .and_then(|_| self.char('l'))
-        {
-            if let Some(_) = self.text.next() {
-                return Some(JObject::JNull);
-            }
-        }
-        return None;
-    }
+        let s: String = self.text.iter().skip(self.i).take(4).collect();
 
-    fn char(&mut self, target_char: char) -> Option<char> {
-        if self.peek().map(|c| c.eq(&target_char)).unwrap_or(false) {
-            if let Some((_, c)) = self.text.next() {
-                return Some(c);
-            }
+        if s == "null" {
+            self.i += 4;
+            return Some(JObject::JNull);
+        } else {
+            return None;
         }
-        return None;
     }
 
     fn symbol(&mut self) -> Option<JObject> {
-        self.dquote().and_then(|_| self.rest_of_symbol())
-    }
-
-    fn dquote(&mut self) -> Option<()> {
-        if self.peek().unwrap_or('0').eq(&'"') {
-            if let Some(_) = self.text.next() {
-                return Some(());
+        if let Some((a, b)) = self.peek2() {
+            if a == '"' && b != '\'' {
+                self.i += 1;
+                return Some(JObject::JSymbol(self.rest_of_string()));
             }
         }
+
         return None;
     }
 
-    fn rest_of_symbol(&mut self) -> Option<JObject> {
+    fn string(&mut self) -> Option<JObject> {
+        if let Some((a, b)) = self.peek2() {
+            if a == '"' && b == '\'' {
+                self.i += 2;
+                return Some(JObject::JString(self.rest_of_string()));
+            }
+        }
+
+        return None;
+    }
+
+    fn rest_of_string(&mut self) -> String {
         let mut text = String::new();
         loop {
-            if let Some((_, ch)) = self.text.next() {
+            if let Some(ch) = self.peek() {
                 if ch == '"' {
+                    self.i += 1;
                     break;
                 }
                 text.push(ch);
             } else {
                 panic!("oh no u forgot quote");
             }
+            self.i += 1
         }
-        return Some(JObject::JSymbol(text));
+        return text;
     }
 }
 
