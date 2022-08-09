@@ -12,6 +12,10 @@ pub enum JObject {
         arguments: Vec<String>,
         definition: Box<JObject>,
     },
+    JMacro {
+        arguments: Vec<String>,
+        definition: Box<JObject>,
+    },
 }
 
 pub fn parse(line: &str) -> JObject {
@@ -226,6 +230,12 @@ mod tests {
 impl JObject {
     pub fn new_func(arguments: Vec<&str>, body: JObject) -> JObject {
         JObject::JFunc {
+            arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
+            definition: Box::new(body),
+        }
+    }
+    pub fn new_macro(arguments: Vec<&str>, body: JObject) -> JObject {
+        JObject::JMacro {
             arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
             definition: Box::new(body),
         }

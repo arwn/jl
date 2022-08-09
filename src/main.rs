@@ -10,7 +10,7 @@ struct Environment {
 }
 
 fn eval<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
-    return match o {
+    return match macroexpand(e, o.clone()) {
         JObject::JList(l) => {
             if l.len() == 0 {
                 o.clone()
@@ -45,24 +45,30 @@ fn eval_ast<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
 
 fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject {
     let new_env = &mut env.clone();
-    if let JObject::JFunc {
-        arguments: func_args,
-        definition: func_def,
-    } = func
-    {
-        if func_args.len() != args.len() {
-            panic!(
-                "function has an arity of {:?} but {:?} were given",
-                func_args.len(),
-                args.len()
-            )
+    println!("applying {:?}", func);
+    match func {
+        JObject::JFunc {
+            arguments: func_args,
+            definition: func_def,
         }
-        for (arg, val) in func_args.iter().zip(args) {
-            new_env.symbols.insert(arg.to_string(), val.clone());
+        | JObject::JMacro {
+            arguments: func_args,
+            definition: func_def,
+        } => {
+            if func_args.len() != args.len() {
+                panic!(
+                    "function has an arity of {:?} but {:?} were given",
+                    func_args.len(),
+                    args.len()
+                )
+            }
+            for (arg, val) in func_args.iter().zip(args) {
+                new_env.symbols.insert(arg.to_string(), val.clone());
+            }
+            return eval(new_env, &func_def);
         }
-        return eval(new_env, &func_def);
-    }
-    panic!("cant apply {:?} to {:?}\nenv: {:?}", func, args, new_env);
+        _ => panic!("cant apply {:?} to {:?}\nenv: {:?}", func, args, new_env),
+    };
 }
 
 fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
@@ -90,6 +96,29 @@ fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
         return JObject::JList(done);
     }
     return o.clone();
+}
+
+fn macroexpand(env: &mut Environment, o: JObject) -> JObject {
+    let mut done = o.clone();
+    while let JObject::JList(l) = done.clone() {
+        if let Some(JObject::JMacro {
+            arguments: args,
+            definition,
+        }) = l.get(0)
+        {
+            done = apply(
+                env,
+                &definition,
+                &args
+                    .iter()
+                    .map(|x| JObject::JString(x.to_string()))
+                    .collect(),
+            );
+        } else {
+            break;
+        }
+    }
+    return done;
 }
 
 fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> Option<JObject> {
@@ -130,6 +159,25 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
                         .collect();
 
                     Some(JObject::new_func(argsyms, args[1].clone()))
+                } else {
+                    None
+                }
+            }
+            "macro" => {
+                assert!(args.len() == 2);
+                if let JObject::JList(fbody_args) = args[0].clone() {
+                    let argsyms = fbody_args
+                        .iter()
+                        .map(|x| {
+                            if let JObject::JSymbol(s) = x {
+                                s.as_str()
+                            } else {
+                                panic!("can't use {:?} as macro arg", x)
+                            }
+                        })
+                        .collect();
+
+                    Some(JObject::new_macro(argsyms, args[1].clone()))
                 } else {
                     None
                 }
