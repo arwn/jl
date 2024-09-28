@@ -1,8 +1,10 @@
 It's like json but with functions. Truly one of the lisps of all time.
 
-```json
+```
 ; ["def", "id", ["f", ["x"], "x"]]
 JFunc { arguments: ["x"], definition: JSymbol("x") }
+; ["id", "id"]
+Func { arguments: ["x"], definition: Symbol("x") }
 ; ["def", "pi", 3]
 JNumber(3)
 ; ["id", "pi"]
