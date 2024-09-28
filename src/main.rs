@@ -281,6 +281,15 @@ mod tests {
     }
 
     #[test]
+    fn test_quasiquote() {
+        let env = &mut init();
+        let cmd = r#"["quasiquote", [1, ["splice-unquote", "pi"], 2]]"#;
+        let o = json::parse(cmd);
+        let new_o = eval(env, &o);
+        assert!(new_o == json::parse(r#"[1,3,2]"#))
+    }
+
+    #[test]
     fn test_func_literal() {
         let env = &mut init();
 
