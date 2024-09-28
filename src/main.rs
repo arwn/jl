@@ -4,15 +4,18 @@ use std::io::{self, Write};
 mod json;
 use json::JObject;
 
+#[cfg(test)]
+mod test;
+
 #[derive(Debug, Clone)]
 struct Environment {
     symbols: HashMap<String, JObject>,
 }
 
-fn eval<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
+fn eval(e: &mut Environment, o: &JObject) -> JObject {
     return match macroexpand(e, o.clone()) {
-        JObject::JList(l) => {
-            if l.len() == 0 {
+        JObject::List(l) => {
+            if l.is_empty() {
                 o.clone()
             } else {
                 let rest = if l.len() == 1 {
@@ -35,10 +38,10 @@ fn eval<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
     };
 }
 
-fn eval_ast<'e, 'o>(e: &'e mut Environment, o: &'o JObject) -> JObject {
+fn eval_ast(e: &mut Environment, o: &JObject) -> JObject {
     return match o {
-        JObject::JList(l) => JObject::JList(l.iter().map(|o| eval(e, o)).collect()),
-        JObject::JSymbol(s) => e.symbols.get(s).unwrap_or(&JObject::JNull).clone(),
+        JObject::List(l) => JObject::List(l.iter().map(|o| eval(e, o)).collect()),
+        JObject::Symbol(s) => e.symbols.get(s).unwrap_or(&JObject::Null).clone(),
         _ => o.clone(),
     };
 }
@@ -47,11 +50,11 @@ fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject 
     let new_env = &mut env.clone();
     println!("applying {:?}", func);
     match func {
-        JObject::JFunc {
+        JObject::Func {
             arguments: func_args,
             definition: func_def,
         }
-        | JObject::JMacro {
+        | JObject::Macro {
             arguments: func_args,
             definition: func_def,
         } => {
@@ -65,22 +68,22 @@ fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject 
             for (arg, val) in func_args.iter().zip(args) {
                 new_env.symbols.insert(arg.to_string(), val.clone());
             }
-            return eval(new_env, &func_def);
+            eval(new_env, func_def)
         }
         _ => panic!("cant apply {:?} to {:?}\nenv: {:?}", func, args, new_env),
-    };
+    }
 }
 
 fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
-    if let JObject::JList(l) = o {
-        if l.len() > 1 && l[0] == JObject::JSymbol("unquote".to_string()) {
+    if let JObject::List(l) = o {
+        if l.len() > 1 && l[0] == JObject::Symbol("unquote".to_string()) {
             return eval(env, &l[1].clone());
         }
         // else we check if anything should be spliced
         let mut done = Vec::new();
         for x in &mut l.iter() {
-            if let JObject::JList(l) = x {
-                if let Some(JObject::JSymbol(s)) = l.get(0) {
+            if let JObject::List(l) = x {
+                if let Some(JObject::Symbol(s)) = l.first() {
                     if s == "splice-unquote" {
                         done.push(eval(env, &l[1]));
                     } else {
@@ -93,36 +96,36 @@ fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
                 done.push(x.clone());
             }
         }
-        return JObject::JList(done);
+        return JObject::List(done);
     }
-    return o.clone();
+    o.clone()
 }
 
 fn macroexpand(env: &mut Environment, o: JObject) -> JObject {
     let mut done = o.clone();
-    while let JObject::JList(l) = done.clone() {
-        if let Some(JObject::JMacro {
+    while let JObject::List(l) = done.clone() {
+        if let Some(JObject::Macro {
             arguments: args,
             definition,
-        }) = l.get(0)
+        }) = l.first()
         {
             done = apply(
                 env,
-                &definition,
+                definition,
                 &args
                     .iter()
-                    .map(|x| JObject::JString(x.to_string()))
+                    .map(|x| JObject::String(x.to_string()))
                     .collect(),
             );
         } else {
             break;
         }
     }
-    return done;
+    done
 }
 
-fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> Option<JObject> {
-    return if let JObject::JSymbol(fname) = head {
+fn call_builtin(env: &mut Environment, head: &JObject, args: &[JObject]) -> Option<JObject> {
+    return if let JObject::Symbol(fname) = head {
         match fname.as_str() {
             "quote" => {
                 assert!(args.len() == 1);
@@ -135,7 +138,7 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
             }
             "def" => {
                 assert!(args.len() == 2);
-                if let JObject::JSymbol(s) = args[0].clone() {
+                if let JObject::Symbol(s) = args[0].clone() {
                     let body = eval(env, &args[1]);
                     env.symbols.insert(s, body.clone());
 
@@ -146,11 +149,11 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
             }
             "f" => {
                 assert!(args.len() == 2);
-                if let JObject::JList(fbody_args) = args[0].clone() {
+                if let JObject::List(fbody_args) = args[0].clone() {
                     let argsyms = fbody_args
                         .iter()
                         .map(|x| {
-                            if let JObject::JSymbol(s) = x {
+                            if let JObject::Symbol(s) = x {
                                 s.as_str()
                             } else {
                                 panic!("can't use {:?} as function arg", x)
@@ -165,11 +168,11 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
             }
             "macro" => {
                 assert!(args.len() == 2);
-                if let JObject::JList(fbody_args) = args[0].clone() {
+                if let JObject::List(fbody_args) = args[0].clone() {
                     let argsyms = fbody_args
                         .iter()
                         .map(|x| {
-                            if let JObject::JSymbol(s) = x {
+                            if let JObject::Symbol(s) = x {
                                 s.as_str()
                             } else {
                                 panic!("can't use {:?} as macro arg", x)
@@ -184,7 +187,7 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
             }
             "if" => {
                 assert!(args.len() == 3);
-                let a = &args[..];
+                let a = args;
                 if let &[b, t, f] = &a {
                     if truthy(b) {
                         Some(t.clone())
@@ -208,9 +211,9 @@ fn call_builtin(env: &mut Environment, head: &JObject, args: &Vec<JObject>) -> O
 
 fn truthy(o: &JObject) -> bool {
     match o {
-        JObject::JNull => false,
-        JObject::JBool(false) => false,
-        JObject::JList(l) => l.len() > 0,
+        JObject::Null => false,
+        JObject::Bool(false) => false,
+        JObject::List(l) => !l.is_empty(),
         _ => true,
     }
 }
@@ -219,133 +222,13 @@ fn init() -> Environment {
     let mut env = Environment {
         symbols: HashMap::new(),
     };
-    env.symbols.insert("pi".to_string(), JObject::JNumber(3));
+    env.symbols.insert("pi".to_string(), JObject::Number(3));
     env.symbols.insert(
         "a-string".to_string(),
-        JObject::JString("this is a string".to_string()),
+        JObject::String("this is a string".to_string()),
     );
 
-    return env;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_env() {
-        let env = &mut init();
-        env.symbols.insert("x".to_string(), JObject::JNumber(3));
-
-        let expr = json::parse("\"x\"");
-        let result = eval(env, &expr);
-
-        assert_eq!(result, JObject::JNumber(3));
-    }
-
-    #[test]
-    fn test_eval_ast() {
-        let e = &mut init();
-
-        e.symbols.insert(
-            "x".to_string(),
-            JObject::new_func(
-                vec![],
-                JObject::JString("a funmtciun wer called".to_string()),
-            ),
-        );
-        let result = eval_ast(e, &JObject::JSymbol("x".to_string()));
-        let result_eval = eval(e, &JObject::JSymbol("x".to_string()));
-
-        assert_eq!(result, e.symbols.get("x").unwrap().clone());
-        assert_eq!(result, result_eval);
-    }
-
-    #[test]
-    fn test_builtin_def() {
-        let env = &mut init();
-        eval(env, &json::parse(r#"["def", "e", 3]")"#));
-        assert_eq!(*env.symbols.get("e").unwrap(), JObject::JNumber(3));
-    }
-
-    #[test]
-    fn test_func() {
-        let env = &mut init();
-
-        let func = JObject::new_func(vec!["x"], JObject::JSymbol("x".to_string()));
-        let args = vec![JObject::JNumber(32)];
-
-        let result = apply(env, &func, &args);
-
-        assert_eq!(result, JObject::JNumber(32));
-    }
-
-    #[test]
-    fn test_quasiquote() {
-        let env = &mut init();
-        let cmd = r#"["quasiquote", [1, ["splice-unquote", "pi"], 2]]"#;
-        let o = json::parse(cmd);
-        let new_o = eval(env, &o);
-        assert!(new_o == json::parse(r#"[1,3,2]"#))
-    }
-
-    #[test]
-    fn test_func_literal() {
-        let env = &mut init();
-
-        let prog = eval(env, &json::parse(r#"["f", [], "'hello"]"#));
-        assert_eq!(
-            prog,
-            JObject::new_func(vec![], JObject::JString("hello".to_string())),
-        );
-    }
-
-    #[test]
-    fn test_func_args() {
-        let env = &mut init();
-
-        env.symbols.insert(
-            "f".to_string(),
-            JObject::new_func(vec!["x"], JObject::JString("x".to_string())),
-        );
-
-        let o = json::parse("[\"f\", 1]");
-        assert_eq!(
-            o,
-            JObject::JList(vec![JObject::JSymbol("f".to_string()), JObject::JNumber(1)])
-        )
-    }
-
-    // takes in something like ((\ [x] x) 12)
-    #[test]
-    fn test_func_as_list() {
-        let env = &mut init();
-
-        let func = JObject::new_func(vec!["x"], JObject::JSymbol("x".to_string()));
-        let list = JObject::JList(vec![func, JObject::JNumber(42)]);
-
-        let result = eval(env, &list);
-
-        assert_eq!(result, JObject::JNumber(42))
-    }
-
-    #[test]
-    fn test_func_call() {
-        let env = &mut init();
-        env.symbols.insert(
-            "x".to_string(),
-            JObject::new_func(
-                vec![],
-                JObject::JString("a funmtciun wer called".to_string()),
-            ),
-        );
-
-        let o = json::parse("[\"x\"]");
-        assert_eq!(o, JObject::JList(vec![JObject::JSymbol("x".to_string())]));
-
-        let res = eval(env, &o);
-        assert_eq!(res, JObject::JString("a funmtciun wer called".to_string()));
-    }
+    env
 }
 
 fn readline() -> String {
@@ -353,33 +236,37 @@ fn readline() -> String {
     io::stdout().flush().unwrap();
     let mut line = String::new();
     io::stdin().read_line(&mut line).unwrap();
-    return line;
+    line
 }
 
 fn read() -> JObject {
     let line = readline();
-    let program = json::parse(&line);
-    return program;
+    json::parse(&line)
 }
+
+const HELP_STR: &str = "Helo!";
 
 fn main() {
     let env = &mut init();
 
     env.symbols.insert(
         "f0".to_string(),
-        JObject::new_func(vec![], JObject::JNumber(12)),
+        JObject::new_func(vec![], JObject::Number(12)),
     );
 
     env.symbols.insert(
         "f1".to_string(),
-        JObject::new_func(vec!["x"], JObject::JSymbol("x".to_string())),
+        JObject::new_func(vec!["x"], JObject::Symbol("x".to_string())),
     );
 
-    env.symbols.insert("pi".to_string(), JObject::JNumber(3));
+    env.symbols.insert("pi".to_string(), JObject::Number(3));
     env.symbols.insert(
         "pie".to_string(),
-        JObject::JString("3.14159265359".to_string()),
+        JObject::String("3.14159265359".to_string()),
     );
+
+    env.symbols
+        .insert("help".to_string(), JObject::String(HELP_STR.to_string()));
 
     loop {
         let program = read();

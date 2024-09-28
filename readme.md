@@ -1,6 +1,6 @@
 It's like json but with functions. Truly one of the lisps of all time.
 
-```
+```json
 ; ["def", "id", ["f", ["x"], "x"]]
 JFunc { arguments: ["x"], definition: JSymbol("x") }
 ; ["def", "pi", 3]

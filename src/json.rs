@@ -1,18 +1,18 @@
 #[derive(Clone, Debug, PartialEq)]
 pub enum JObject {
-    JNull,
-    JBool(bool),
-    JNumber(i64),
-    JString(String),
-    JList(Vec<JObject>),
+    Null,
+    Bool(bool),
+    Number(i64),
+    String(String),
+    List(Vec<JObject>),
 
     // other stuff to make json a programming language
-    JSymbol(String),
-    JFunc {
+    Symbol(String),
+    Func {
         arguments: Vec<String>,
         definition: Box<JObject>,
     },
-    JMacro {
+    Macro {
         arguments: Vec<String>,
         definition: Box<JObject>,
     },
@@ -20,7 +20,7 @@ pub enum JObject {
 
 pub fn parse(line: &str) -> JObject {
     let x = line.to_string().chars().collect();
-    Parser::parse(&mut Parser { text: x, i: 0 }).unwrap_or(JObject::JNull)
+    Parser::parse(&mut Parser { text: x, i: 0 }).unwrap_or(JObject::Null)
 }
 
 struct Parser {
@@ -31,23 +31,22 @@ struct Parser {
 impl Parser {
     fn parse(&mut self) -> Option<JObject> {
         self.ws();
-        return self
-            .number()
+        self.number()
             .or_else(|| self.null())
             .or_else(|| self.bool())
             .or_else(|| self.string())
             .or_else(|| self.symbol())
-            .or_else(|| self.list());
+            .or_else(|| self.list())
     }
 
     fn peek(&mut self) -> Option<char> {
-        self.text.get(self.i).map(|c| *c)
+        self.text.get(self.i).copied()
     }
 
     fn peek2(&mut self) -> Option<(char, char)> {
         let first = self.text.get(self.i);
         let second = self.text.get(self.i + 1);
-        return first.and_then(|c1| second.map(|c2| (*c1, *c2)));
+        first.and_then(|c1| second.map(|c2| (*c1, *c2)))
     }
 
     fn ws(&mut self) -> Option<JObject> {
@@ -58,7 +57,7 @@ impl Parser {
                 break;
             }
         }
-        return None;
+        None
     }
 
     fn list(&mut self) -> Option<JObject> {
@@ -92,7 +91,7 @@ impl Parser {
             panic!("Invalid list in {:?} at index {:?}", self.text, self.i);
         }
 
-        return Some(JObject::JList(builder));
+        Some(JObject::List(builder))
     }
 
     fn number(&mut self) -> Option<JObject> {
@@ -102,7 +101,7 @@ impl Parser {
             .and_then(|c| c.to_string().parse().ok())
             .map(|n| {
                 self.i += 1;
-                JObject::JNumber(n)
+                JObject::Number(n)
             });
     }
 
@@ -111,9 +110,9 @@ impl Parser {
 
         if s == "null" {
             self.i += 4;
-            return Some(JObject::JNull);
+            Some(JObject::Null)
         } else {
-            return None;
+            None
         }
     }
 
@@ -122,12 +121,12 @@ impl Parser {
         let f: String = self.text.iter().skip(self.i).take(5).collect();
         if t == "true" {
             self.i += 4;
-            return Some(JObject::JBool(true));
+            Some(JObject::Bool(true))
         } else if f == "false" {
             self.i += 5;
-            return Some(JObject::JBool(false));
+            Some(JObject::Bool(false))
         } else {
-            return None;
+            None
         }
     }
 
@@ -135,22 +134,22 @@ impl Parser {
         if let Some((a, b)) = self.peek2() {
             if a == '"' && b != '\'' {
                 self.i += 1;
-                return Some(JObject::JSymbol(self.rest_of_string()));
+                return Some(JObject::Symbol(self.rest_of_string()));
             }
         }
 
-        return None;
+        None
     }
 
     fn string(&mut self) -> Option<JObject> {
         if let Some((a, b)) = self.peek2() {
             if a == '"' && b == '\'' {
                 self.i += 2;
-                return Some(JObject::JString(self.rest_of_string()));
+                return Some(JObject::String(self.rest_of_string()));
             }
         }
 
-        return None;
+        None
     }
 
     fn rest_of_string(&mut self) -> String {
@@ -167,75 +166,19 @@ impl Parser {
             }
             self.i += 1
         }
-        return text;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bool() {
-        assert_eq!(parse("true"), JObject::JBool(true));
-        assert_eq!(parse("false"), JObject::JBool(false));
-    }
-
-    #[test]
-    fn test_parse_list() {
-        assert_eq!(parse("[]"), JObject::JList(vec![]));
-        assert_eq!(parse("[1]"), JObject::JList(vec![JObject::JNumber(1)]));
-        assert_eq!(
-            parse("[1, 2]"),
-            JObject::JList(vec![JObject::JNumber(1), JObject::JNumber(2)])
-        );
-
-        assert_eq!(parse("[[]]"), JObject::JList(vec![JObject::JList(vec![])]));
-        assert_eq!(
-            parse("[[[]]]"),
-            JObject::JList(vec![JObject::JList(vec![JObject::JList(vec![])])])
-        );
-        assert_eq!(
-            parse("[[1]]"),
-            JObject::JList(vec![JObject::JList(vec![JObject::JNumber(1)])])
-        );
-        assert_eq!(
-            parse("[[1, 1]]"),
-            JObject::JList(vec![JObject::JList(vec![
-                JObject::JNumber(1),
-                JObject::JNumber(1)
-            ])])
-        );
-        assert_eq!(
-            parse("[[1], 1]"),
-            JObject::JList(vec![
-                JObject::JList(vec![JObject::JNumber(1)]),
-                JObject::JNumber(1)
-            ])
-        );
-        assert_eq!(
-            parse(r#"[["f", ["x"], 1], 1]")"#),
-            JObject::JList(vec![
-                JObject::JList(vec![
-                    JObject::JSymbol("f".to_string()),
-                    JObject::JList(vec![JObject::JSymbol("x".to_string())]),
-                    JObject::JNumber(1)
-                ]),
-                JObject::JNumber(1)
-            ])
-        );
+        text
     }
 }
 
 impl JObject {
     pub fn new_func(arguments: Vec<&str>, body: JObject) -> JObject {
-        JObject::JFunc {
+        JObject::Func {
             arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
             definition: Box::new(body),
         }
     }
     pub fn new_macro(arguments: Vec<&str>, body: JObject) -> JObject {
-        JObject::JMacro {
+        JObject::Macro {
             arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
             definition: Box::new(body),
         }
