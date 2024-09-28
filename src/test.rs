@@ -129,6 +129,10 @@ fn test_parse_list() {
     assert_eq!(json::parse("[]"), JObject::List(vec![]));
     assert_eq!(json::parse("[1]"), JObject::List(vec![JObject::Number(1)]));
     assert_eq!(
+        json::parse("[12]"),
+        JObject::List(vec![JObject::Number(12)])
+    );
+    assert_eq!(
         json::parse("[1, 2]"),
         JObject::List(vec![JObject::Number(1), JObject::Number(2)])
     );

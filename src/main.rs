@@ -48,7 +48,6 @@ fn eval_ast(e: &mut Environment, o: &JObject) -> JObject {
 
 fn apply(env: &mut Environment, func: &JObject, args: &Vec<JObject>) -> JObject {
     let new_env = &mut env.clone();
-    println!("applying {:?}", func);
     match func {
         JObject::Func {
             arguments: func_args,

@@ -23,6 +23,7 @@ pub fn parse(line: &str) -> JObject {
     Parser::parse(&mut Parser { text: x, i: 0 }).unwrap_or(JObject::Null)
 }
 
+#[derive(Debug)]
 struct Parser {
     text: Vec<char>,
     i: usize,
@@ -95,14 +96,17 @@ impl Parser {
     }
 
     fn number(&mut self) -> Option<JObject> {
-        return self
-            .text
-            .get(self.i)
-            .and_then(|c| c.to_string().parse().ok())
-            .map(|n| {
-                self.i += 1;
-                JObject::Number(n)
-            });
+        let str = self.text[self.i..]
+            .iter()
+            .take_while(|c| (&&'0'..=&&'9').contains(&c))
+            .collect::<String>();
+
+        if str.is_empty() {
+            None
+        } else {
+            self.i += str.len();
+            Some(JObject::Number(str.parse().unwrap()))
+        }
     }
 
     fn null(&mut self) -> Option<JObject> {
