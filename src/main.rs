@@ -1,6 +1,9 @@
 use core::panic;
 use std::collections::HashMap;
+use std::env::args;
+use std::fs;
 use std::io::{self, Write};
+
 mod json;
 use json::JObject;
 
@@ -27,7 +30,7 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
             }
             Some((
                 JObject::Macro {
-                    arguments,
+                    parameters: arguments,
                     definition,
                 },
                 tl,
@@ -236,7 +239,21 @@ fn read() -> JObject {
 
 const HELP_STR: &str = "Helo!";
 
-fn main() {
+fn mainloop(env: &mut Environment) {
+    loop {
+        let program = read();
+        let res: JObject = eval(env, &program);
+        println!("{} => {}", res, res.typename())
+    }
+}
+
+fn run_file(env: &mut Environment, path: &str) -> Result<(), std::io::Error> {
+    let program = fs::read_to_string(path)?;
+    let res = eval(env, &json::parse(&program));
+    Ok(println!("{}", res))
+}
+
+fn main() -> Result<(), io::Error> {
     let env = &mut init();
 
     env.symbols.insert(
@@ -258,9 +275,13 @@ fn main() {
     env.symbols
         .insert("help".to_string(), JObject::String(HELP_STR.to_string()));
 
-    loop {
-        let program = read();
-        let res = eval(env, &program);
-        println!("{:?}", res)
+    if args().len() == 1 {
+        mainloop(env)
+    } else if args().len() == 2 {
+        let args: Vec<String> = args().collect();
+        return run_file(env, &args[1]);
+    } else {
+        println!("invald # of args: {}", args().len())
     }
+    Ok(())
 }

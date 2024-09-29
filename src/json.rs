@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum JObject {
@@ -16,7 +17,7 @@ pub enum JObject {
         definition: Box<JObject>,
     },
     Macro {
-        arguments: Vec<String>,
+        parameters: Vec<String>,
         definition: Box<JObject>,
     },
 }
@@ -39,7 +40,6 @@ impl Parser {
             .or_else(|| self.null())
             .or_else(|| self.bool())
             .or_else(|| self.string())
-            // .or_else(|| self.symbol())
             .or_else(|| self.list())
             .or_else(|| self.map())
     }
@@ -50,7 +50,7 @@ impl Parser {
 
     fn ws(&mut self) -> Option<JObject> {
         loop {
-            if self.peek().unwrap_or('e').is_whitespace() {
+            if self.peek()?.is_whitespace() {
                 self.i += 1;
             } else {
                 break;
@@ -208,8 +208,65 @@ impl JObject {
     }
     pub fn new_macro(arguments: Vec<&str>, body: JObject) -> JObject {
         JObject::Macro {
-            arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
+            parameters: arguments.iter().map(|&arg| arg.to_string()).collect(),
             definition: Box::new(body),
         }
+    }
+
+    pub fn typename(&self) -> String {
+        let name = match self {
+            JObject::Null => "Null",
+            JObject::Bool(_) => "Bool",
+            JObject::Number(_) => "Number",
+            JObject::String(_) => "String",
+            JObject::List(_) => "List",
+            JObject::Map(_) => "Map",
+            JObject::Func {
+                parameters: _,
+                definition: _,
+            } => "Func",
+            JObject::Macro {
+                parameters: _,
+                definition: _,
+            } => "Macro",
+        };
+        name.to_string()
+    }
+}
+
+impl fmt::Display for JObject {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let str: String = match self {
+            JObject::Null => "[]".to_string(),
+            JObject::Bool(true) => "true".to_string(),
+            JObject::Bool(false) => "true".to_string(),
+            JObject::Number(n) => n.to_string(),
+            JObject::String(s) => ["\"", s, "\""].concat(),
+            JObject::List(l) => {
+                "[".to_owned()
+                    + &l.iter()
+                        .map(|x| format!("{}", x).to_string())
+                        .collect::<Vec<String>>()
+                        .join(",")
+                    + "]"
+            }
+            JObject::Map(m) => {
+                "{".to_owned()
+                    + &m.iter()
+                        .map(|(k, v)| format!("{}:{}", k, v))
+                        .collect::<Vec<String>>()
+                        .join(",")
+                    + "}"
+            }
+            JObject::Func {
+                parameters,
+                definition,
+            } => format!(r#"["f", [{}], {}]"#, parameters.join(","), definition),
+            JObject::Macro {
+                parameters,
+                definition,
+            } => format!(r#"["macro", [{}], {}]"#, parameters.join(","), definition),
+        };
+        write!(f, "{}", str)
     }
 }
