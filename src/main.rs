@@ -35,7 +35,7 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
             Some((JObject::String(s), tl)) => {
                 if e.symbols.contains_key(s) {
                     let new_head = eval(e, &JObject::String(s.to_string()));
-                    let new_list = vec![vec![new_head], tl.to_vec()].concat();
+                    let new_list = [vec![new_head], tl.to_vec()].concat();
                     return eval(e, &JObject::List(new_list));
                 }
                 let res = call_builtin(e, s, tl);
@@ -48,8 +48,8 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
             Some((JObject::List(l), tl)) => {
                 // let list = vec![vec![eval(e, h)], tl.to_vec()].concat();
                 let hd = eval(e, &JObject::List(l.to_vec()));
-                let new_list = vec![vec![hd], tl.to_vec()].concat();
-                JObject::List(new_list)
+                let new_list = [vec![hd], tl.to_vec()].concat();
+                eval(e, &JObject::List(new_list))
             }
             Some(x) => {
                 println!("1st element of list is not function-like: {:?}", x);
@@ -57,6 +57,15 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
             }
             None => JObject::Null,
         },
+
+        JObject::Map(m) => {
+            let mut new_map = HashMap::new();
+            for (k, v) in m {
+                let new_v = eval(e, v);
+                new_map.insert(k.to_string(), Box::new(new_v));
+            }
+            JObject::Map(new_map)
+        }
 
         JObject::String(s) => e
             .symbols

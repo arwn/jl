@@ -1,10 +1,13 @@
-#[derive(Clone, Debug, PartialEq)]
+use std::collections::HashMap;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum JObject {
     Null,
     Bool(bool),
     Number(i64),
     String(String),
     List(Vec<JObject>),
+    Map(HashMap<String, Box<JObject>>),
 
     // other stuff to make json a programming language
     // Symbol(String),
@@ -38,6 +41,7 @@ impl Parser {
             .or_else(|| self.string())
             // .or_else(|| self.symbol())
             .or_else(|| self.list())
+            .or_else(|| self.map())
     }
 
     fn peek(&mut self) -> Option<char> {
@@ -87,6 +91,45 @@ impl Parser {
         }
 
         Some(JObject::List(builder))
+    }
+
+    fn map(&mut self) -> Option<JObject> {
+        let mut builder = HashMap::new();
+
+        if let Some('{') = self.peek() {
+            self.i += 1;
+        } else {
+            return None;
+        }
+
+        loop {
+            self.ws();
+            let key = if let Some(JObject::String(s)) = self.string() {
+                Some(s)
+            } else {
+                println!("object key is not string");
+                return None;
+            }?;
+            if self.peek() == Some(':') {
+                self.i += 1;
+            }
+            let value = self.parse()?;
+            self.ws();
+            builder.insert(key, Box::new(value));
+            if self.peek() != Some(',') {
+                break;
+            }
+            self.i += 1;
+        }
+
+        self.ws();
+        if let Some('}') = self.peek() {
+            self.i += 1;
+        } else {
+            println!("Map not terminated {:?} at index {:?}", self.text, self.i);
+        }
+
+        Some(JObject::Map(builder))
     }
 
     fn number(&mut self) -> Option<JObject> {
