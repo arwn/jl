@@ -199,6 +199,20 @@ impl Parser {
     }
 }
 
+#[macro_export]
+macro_rules! list {
+    () => (
+        $crate::json::JObject::Null
+    );
+    ($elem:expr; $n:expr) => (
+        $x.to_jobject()
+    );
+    ($($x:expr),+ $(,)?) => {
+        $crate::json::JObject::List(vec![$($x.to_jobject()),+])
+    };
+
+}
+
 impl JObject {
     pub fn new_func(arguments: Vec<&str>, body: JObject) -> JObject {
         JObject::Func {
@@ -268,5 +282,33 @@ impl fmt::Display for JObject {
             } => format!(r#"["macro", [{}], {}]"#, parameters.join(","), definition),
         };
         write!(f, "{}", str)
+    }
+}
+
+pub trait ToJObject {
+    fn to_jobject(&self) -> JObject;
+}
+
+impl ToJObject for bool {
+    fn to_jobject(&self) -> JObject {
+        JObject::Bool(*self)
+    }
+}
+
+impl ToJObject for i64 {
+    fn to_jobject(&self) -> JObject {
+        JObject::Number(*self)
+    }
+}
+
+impl ToJObject for &str {
+    fn to_jobject(&self) -> JObject {
+        JObject::String(self.to_string())
+    }
+}
+
+impl ToJObject for str {
+    fn to_jobject(&self) -> JObject {
+        JObject::String(self.to_string())
     }
 }

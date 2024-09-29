@@ -33,8 +33,9 @@ fn test_env() {
 #[test]
 fn test_builtin_def() {
     let env = &mut init();
+    stdlib::load_mod(env);
     eval(env, &json::parse(r#"["def", "e", 3]")"#));
-    assert_eq!(*env.symbols.get("e").unwrap(), JObject::Number(3));
+    assert_eq!(env.symbols.get("e"), Some(&JObject::Number(3)));
 }
 
 // #[test]
@@ -53,6 +54,8 @@ fn test_builtin_def() {
 fn test_quasiquote() {
     let env = &mut init();
     let cmd = r#"["quasiquote", [1, ["splice-unquote", "pi"], 2]]"#;
+    stdlib::load_mod(env);
+
     let o = json::parse(cmd);
     let new_o = eval(env, &o);
     assert!(new_o == json::parse(r#"[1,3,2]"#))
@@ -61,6 +64,7 @@ fn test_quasiquote() {
 #[test]
 fn test_func_literal() {
     let env = &mut init();
+    stdlib::load_mod(env);
 
     let prog = eval(env, &json::parse(r#"["f", [], 123]"#));
     assert_eq!(prog, JObject::new_func(vec![], JObject::Number(123)),);

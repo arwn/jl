@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::HashMap;
 use std::env::args;
 use std::fs;
@@ -7,12 +6,27 @@ use std::io::{self, Write};
 mod json;
 use json::JObject;
 
+mod stdlib;
+
 #[cfg(test)]
 mod test;
+
+type JlFn = fn(&mut Environment, &[JObject]) -> JObject;
 
 #[derive(Debug, Clone)]
 struct Environment {
     symbols: HashMap<String, JObject>,
+    builtins: HashMap<String, JlFn>,
+}
+
+impl Environment {
+    pub fn import_builtin(
+        &mut self,
+        fname: &str,
+        fbody: fn(&mut Environment, &[JObject]) -> JObject,
+    ) {
+        self.builtins.insert(fname.to_string(), fbody);
+    }
 }
 
 fn eval(e: &mut Environment, o: &JObject) -> JObject {
@@ -94,126 +108,17 @@ fn apply_f(
     eval(e, &definition)
 }
 
-fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
-    if let JObject::List(l) = o {
-        if l.len() > 1 && l[0] == JObject::String("unquote".to_string()) {
-            return eval(env, &l[1].clone());
-        }
-        // else we check if anything should be spliced
-        let mut done = Vec::new();
-        for x in &mut l.iter() {
-            if let JObject::List(l) = x {
-                if let Some(JObject::String(s)) = l.first() {
-                    if s == "splice-unquote" {
-                        done.push(eval(env, &l[1]));
-                    } else {
-                        done.push(x.clone());
-                    }
-                } else {
-                    done.push(x.clone());
-                }
-            } else {
-                done.push(x.clone());
-            }
-        }
-        return JObject::List(done);
-    }
-    o.clone()
-}
-
 fn call_builtin(env: &mut Environment, fname: &str, args: &[JObject]) -> Option<JObject> {
-    match fname {
-        "quote" => {
-            assert!(args.len() == 1);
-            Some(args[0].clone())
-        }
-        "quasiquote" => {
-            assert!(args.len() == 1);
-            let walked = quasiwalk(env, &args[0]);
-            Some(walked)
-        }
-        "def" => {
-            assert!(args.len() == 2);
-            if let JObject::String(s) = args[0].clone() {
-                let body = eval(env, &args[1]);
-                env.symbols.insert(s, body.clone());
-
-                Some(body)
-            } else {
-                panic!("you can't assign a non-string to a value");
-            }
-        }
-        "f" => {
-            assert!(args.len() == 2);
-            if let JObject::List(fbody_args) = args[0].clone() {
-                let argsyms = fbody_args
-                    .iter()
-                    .map(|x| {
-                        if let JObject::String(s) = x {
-                            s.as_str()
-                        } else {
-                            panic!("can't use {:?} as function arg", x)
-                        }
-                    })
-                    .collect();
-
-                Some(JObject::new_func(argsyms, args[1].clone()))
-            } else {
-                None
-            }
-        }
-        "macro" => {
-            assert!(args.len() == 2);
-            if let JObject::List(fbody_args) = args[0].clone() {
-                let argsyms = fbody_args
-                    .iter()
-                    .map(|x| {
-                        if let JObject::String(s) = x {
-                            s.as_str()
-                        } else {
-                            panic!("can't use {:?} as macro arg", x)
-                        }
-                    })
-                    .collect();
-
-                Some(JObject::new_macro(argsyms, args[1].clone()))
-            } else {
-                None
-            }
-        }
-        "if" => {
-            assert!(args.len() == 3);
-            let a = args;
-            if let &[b, t, f] = &a {
-                if truthy(b) {
-                    Some(t.clone())
-                } else {
-                    Some(f.clone())
-                }
-            } else {
-                None
-            }
-        }
-        "crash" => {
-            unsafe { std::ptr::null_mut::<i8>().write(1) };
-            None
-        }
-        _ => None,
+    if env.builtins.contains_key(fname) {
+        return Some(env.builtins.get(fname)?(env, args));
     }
-}
-
-fn truthy(o: &JObject) -> bool {
-    match o {
-        JObject::Null => false,
-        JObject::Bool(false) => false,
-        JObject::List(l) => !l.is_empty(),
-        _ => true,
-    }
+    None
 }
 
 fn init() -> Environment {
     let mut env = Environment {
         symbols: HashMap::new(),
+        builtins: HashMap::new(),
     };
     env.symbols.insert("pi".to_string(), JObject::Number(3));
     env.symbols.insert(
@@ -274,6 +179,8 @@ fn main() -> Result<(), io::Error> {
 
     env.symbols
         .insert("help".to_string(), JObject::String(HELP_STR.to_string()));
+
+    stdlib::load_mod(env);
 
     if args().len() == 1 {
         mainloop(env)
