@@ -12,23 +12,23 @@ fn test_env() {
     assert_eq!(result, JObject::Number(3));
 }
 
-#[test]
-fn test_eval_ast() {
-    let e = &mut init();
+// #[test]
+// fn test_eval_ast() {
+//     let e = &mut init();
 
-    e.symbols.insert(
-        "x".to_string(),
-        JObject::new_func(
-            vec![],
-            JObject::String("a funmtciun wer called".to_string()),
-        ),
-    );
-    let result = eval_ast(e, &JObject::Symbol("x".to_string()));
-    let result_eval = eval(e, &JObject::Symbol("x".to_string()));
+//     e.symbols.insert(
+//         "x".to_string(),
+//         JObject::new_func(
+//             vec![],
+//             JObject::String("a funmtciun wer called".to_string()),
+//         ),
+//     );
+//     let result = eval_ast(e, &JObject::Symbol("x".to_string()));
+//     let result_eval = eval(e, &JObject::Symbol("x".to_string()));
 
-    assert_eq!(result, e.symbols.get("x").unwrap().clone());
-    assert_eq!(result, result_eval);
-}
+//     assert_eq!(result, e.symbols.get("x").unwrap().clone());
+//     assert_eq!(result, result_eval);
+// }
 
 #[test]
 fn test_builtin_def() {
@@ -37,17 +37,17 @@ fn test_builtin_def() {
     assert_eq!(*env.symbols.get("e").unwrap(), JObject::Number(3));
 }
 
-#[test]
-fn test_func() {
-    let env = &mut init();
+// #[test]
+// fn test_func() {
+//     let env = &mut init();
 
-    let func = JObject::new_func(vec!["x"], JObject::Symbol("x".to_string()));
-    let args = vec![JObject::Number(32)];
+//     let func = JObject::new_func(vec!["x"], JObject::Symbol("x".to_string()));
+//     let args = vec![JObject::Number(32)];
 
-    let result = apply(env, &func, &args);
+//     let result = apply(env, &func, &args);
 
-    assert_eq!(result, JObject::Number(32));
-}
+//     assert_eq!(result, JObject::Number(32));
+// }
 
 #[test]
 fn test_quasiquote() {
@@ -62,11 +62,8 @@ fn test_quasiquote() {
 fn test_func_literal() {
     let env = &mut init();
 
-    let prog = eval(env, &json::parse(r#"["f", [], "'hello"]"#));
-    assert_eq!(
-        prog,
-        JObject::new_func(vec![], JObject::String("hello".to_string())),
-    );
+    let prog = eval(env, &json::parse(r#"["f", [], 123]"#));
+    assert_eq!(prog, JObject::new_func(vec![], JObject::Number(123)),);
 }
 
 #[test]
@@ -81,7 +78,7 @@ fn test_func_args() {
     let o = json::parse("[\"f\", 1]");
     assert_eq!(
         o,
-        JObject::List(vec![JObject::Symbol("f".to_string()), JObject::Number(1)])
+        JObject::List(vec![JObject::String("f".to_string()), JObject::Number(1)])
     )
 }
 
@@ -90,7 +87,7 @@ fn test_func_args() {
 fn test_func_as_list() {
     let env = &mut init();
 
-    let func = JObject::new_func(vec!["x"], JObject::Symbol("x".to_string()));
+    let func = JObject::new_func(vec!["x"], JObject::String("x".to_string()));
     let list = JObject::List(vec![func, JObject::Number(42)]);
 
     let result = eval(env, &list);
@@ -110,10 +107,46 @@ fn test_func_call() {
     );
 
     let o = json::parse("[\"x\"]");
-    assert_eq!(o, JObject::List(vec![JObject::Symbol("x".to_string())]));
+    assert_eq!(o, JObject::List(vec![JObject::String("x".to_string())]));
 
     let res = eval(env, &o);
     assert_eq!(res, JObject::String("a funmtciun wer called".to_string()));
+}
+
+#[test]
+fn call_function_in_function_body() {
+    let env = &mut init();
+    env.symbols.insert(
+        "id".to_string(),
+        JObject::new_func(vec!["x"], JObject::String("x".to_string())),
+    );
+    env.symbols.insert(
+        "one".to_string(),
+        JObject::new_func(vec![], JObject::Number(1)),
+    );
+
+    let o = json::parse(r#"["id", ["one"]]"#);
+    let res = eval(env, &o);
+
+    assert_eq!(res, JObject::Number(1));
+}
+
+#[test]
+fn macro_simple() {
+    let env = &mut init();
+    env.symbols.insert(
+        "return-22".to_string(),
+        JObject::new_macro(vec!["x"], JObject::Number(22)),
+    );
+
+    let o = json::parse("[\"return-22\"]");
+    assert_eq!(
+        o,
+        JObject::List(vec![JObject::String("return-22".to_string())])
+    );
+
+    let res = eval(env, &o);
+    assert_eq!(res, JObject::Number(22));
 }
 
 // json stuff
@@ -167,8 +200,8 @@ fn test_parse_list() {
         json::parse(r#"[["f", ["x"], 1], 1]")"#),
         JObject::List(vec![
             JObject::List(vec![
-                JObject::Symbol("f".to_string()),
-                JObject::List(vec![JObject::Symbol("x".to_string())]),
+                JObject::String("f".to_string()),
+                JObject::List(vec![JObject::String("x".to_string())]),
                 JObject::Number(1)
             ]),
             JObject::Number(1)

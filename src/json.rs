@@ -7,9 +7,9 @@ pub enum JObject {
     List(Vec<JObject>),
 
     // other stuff to make json a programming language
-    Symbol(String),
+    // Symbol(String),
     Func {
-        arguments: Vec<String>,
+        parameters: Vec<String>,
         definition: Box<JObject>,
     },
     Macro {
@@ -36,18 +36,12 @@ impl Parser {
             .or_else(|| self.null())
             .or_else(|| self.bool())
             .or_else(|| self.string())
-            .or_else(|| self.symbol())
+            // .or_else(|| self.symbol())
             .or_else(|| self.list())
     }
 
     fn peek(&mut self) -> Option<char> {
         self.text.get(self.i).copied()
-    }
-
-    fn peek2(&mut self) -> Option<(char, char)> {
-        let first = self.text.get(self.i);
-        let second = self.text.get(self.i + 1);
-        first.and_then(|c1| second.map(|c2| (*c1, *c2)))
     }
 
     fn ws(&mut self) -> Option<JObject> {
@@ -89,7 +83,7 @@ impl Parser {
         if let Some(']') = self.peek() {
             self.i += 1;
         } else {
-            panic!("Invalid list in {:?} at index {:?}", self.text, self.i);
+            println!("List not terminated {:?} at index {:?}", self.text, self.i);
         }
 
         Some(JObject::List(builder))
@@ -134,23 +128,10 @@ impl Parser {
         }
     }
 
-    fn symbol(&mut self) -> Option<JObject> {
-        if let Some((a, b)) = self.peek2() {
-            if a == '"' && b != '\'' {
-                self.i += 1;
-                return Some(JObject::Symbol(self.rest_of_string()));
-            }
-        }
-
-        None
-    }
-
     fn string(&mut self) -> Option<JObject> {
-        if let Some((a, b)) = self.peek2() {
-            if a == '"' && b == '\'' {
-                self.i += 2;
-                return Some(JObject::String(self.rest_of_string()));
-            }
+        if let Some('\"') = self.peek() {
+            self.i += 1;
+            return Some(JObject::String(self.rest_of_string()));
         }
 
         None
@@ -166,7 +147,8 @@ impl Parser {
                 }
                 text.push(ch);
             } else {
-                panic!("oh no u forgot quote");
+                println!("Missing quote, continuing");
+                break;
             }
             self.i += 1
         }
@@ -177,7 +159,7 @@ impl Parser {
 impl JObject {
     pub fn new_func(arguments: Vec<&str>, body: JObject) -> JObject {
         JObject::Func {
-            arguments: arguments.iter().map(|&arg| arg.to_string()).collect(),
+            parameters: arguments.iter().map(|&arg| arg.to_string()).collect(),
             definition: Box::new(body),
         }
     }
