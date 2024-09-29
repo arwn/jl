@@ -148,7 +148,7 @@ fn mainloop(env: &mut Environment) {
     loop {
         let program = read();
         let res: JObject = eval(env, &program);
-        println!("{} => {}", res, res.typename())
+        println!("{}", res)
     }
 }
 

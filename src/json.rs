@@ -312,3 +312,9 @@ impl ToJObject for str {
         JObject::String(self.to_string())
     }
 }
+
+impl ToJObject for Vec<JObject> {
+    fn to_jobject(&self) -> JObject {
+        JObject::List(self.clone())
+    }
+}

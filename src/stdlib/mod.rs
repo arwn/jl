@@ -12,6 +12,16 @@ pub fn load_mod(env: &mut Environment) {
         JObject::Null
     });
 
+    env.import_builtin("type", |env, o| {
+        let evaled: Vec<JObject> = o.iter().map(|x| crate::eval(env, x)).collect();
+        if evaled.len() == 1 {
+            evaled[0].typename().to_jobject()
+        } else {
+            let x: Vec<JObject> = evaled.iter().map(|x| x.typename().to_jobject()).collect();
+            JObject::List(x)
+        }
+    });
+
     env.import_builtin("quote", |_env, o| {
         if o.len() != 1 {
             return list!["error", "badarity"];
