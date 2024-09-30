@@ -2,10 +2,11 @@
 It's like json but with functions.
 
 No dependencies. At least 10 unit tests. Fast as hell (probably).
-
 ```json
 ["program",
-    ["quote", "Given an integer array nums, return true if any value appears at least twice in the array, and return false if every element is distinct."],
+    ["quote", "Given an integer array nums, return true if any value"],
+    ["quote", "appears at least twice in the array, and return false"],
+    ["quote", "if every element is distinct."],
 
     ["import", "std::io"],
     ["import", "std::array"],
