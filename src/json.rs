@@ -199,18 +199,9 @@ impl Parser {
     }
 }
 
-#[macro_export]
-macro_rules! list {
-    () => (
-        $crate::json::JObject::Null
-    );
-    ($elem:expr; $n:expr) => (
-        $x.to_jobject()
-    );
-    ($($x:expr),+ $(,)?) => {
-        $crate::json::JObject::List(vec![$($x.to_jobject()),+])
-    };
-
+pub fn new_list<T: ToJObject>(xs: &[T]) -> JObject {
+    let done: Vec<JObject> = xs.iter().map(|x| x.to_jobject()).collect();
+    JObject::List(done)
 }
 
 impl JObject {

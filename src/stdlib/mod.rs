@@ -1,19 +1,36 @@
-use crate::json::ToJObject;
-use crate::list;
+use crate::json::{new_list, ToJObject};
 use crate::{json::JObject, Environment};
 
 pub mod io;
 
-pub fn load_mod(env: &mut Environment) {
-    env.import_builtin("println", |_env, o| {
-        for arg in o {
-            println!("{}", arg);
+pub fn import_builtin_library(env: &mut Environment, name: &str) -> JObject {
+    // TODO: Is there a better way to import libraries?
+    match name {
+        "std::io" => io::load_mod(env),
+        _ => {
+            println!("builtin library not found: {}", name);
+            return new_list(&["error", "bad-import"]);
         }
-        JObject::Null
+    }
+    "ok".to_jobject()
+}
+
+pub fn load_mod(env: &mut Environment) {
+    env.insert_builtin("import", |env, args| {
+        let mut last_import = "ok".to_jobject();
+        for arg in args {
+            if let JObject::String(s) = arg {
+                last_import = import_builtin_library(env, s);
+            } else {
+                println!("{}: not module name", arg);
+                return new_list(&["error", "bad-import"]);
+            }
+        }
+        last_import
     });
 
-    env.import_builtin("type", |env, o| {
-        let evaled: Vec<JObject> = o.iter().map(|x| crate::eval(env, x)).collect();
+    env.insert_builtin("type", |env, args| {
+        let evaled: Vec<JObject> = args.iter().map(|x| crate::eval(env, x)).collect();
         if evaled.len() == 1 {
             evaled[0].typename().to_jobject()
         } else {
@@ -22,27 +39,26 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.import_builtin("quote", |_env, o| {
-        if o.len() != 1 {
-            return list!["error", "badarity"];
+    env.insert_builtin("quote", |_env, args| {
+        if args.len() != 1 {
+            return new_list(&["error", "bad-arity"]);
         }
-        assert!(o.len() == 1);
-        o[0].clone()
+        args[0].clone()
     });
 
-    env.import_builtin("quasiquote", |env, o| {
-        if o.len() != 1 {
-            return list!["error", "badarity"];
+    env.insert_builtin("quasiquote", |env, args| {
+        if args.len() != 1 {
+            return new_list(&["error", "bad-arity"]);
         }
-        quasiwalk(env, &o[0])
+        quasiwalk(env, &args[0])
     });
 
-    env.import_builtin("def", |env, o| {
-        if o.len() != 2 {
-            return list!["error", "badarity"];
+    env.insert_builtin("def", |env, args| {
+        if args.len() != 2 {
+            return new_list(&["error", "bad-arity"]);
         }
-        if let JObject::String(s) = o[0].clone() {
-            let body = crate::eval(env, &o[1]);
+        if let JObject::String(s) = args[0].clone() {
+            let body = crate::eval(env, &args[1]);
             env.symbols.insert(s, body.clone());
             body
         } else {
@@ -50,9 +66,9 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.import_builtin("f", |_env, o| {
+    env.insert_builtin("f", |_env, o| {
         if o.len() != 2 {
-            return list!["error", "badarity"];
+            return new_list(&["error", "bad-arity"]);
         }
         if let JObject::List(fbody_args) = o[0].clone() {
             let argsyms = fbody_args
@@ -72,9 +88,9 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.import_builtin("macro", |_env, o| {
+    env.insert_builtin("macro", |_env, o| {
         if o.len() != 2 {
-            return list!["error", "badarity"];
+            return new_list(&["error", "bad-arity"]);
         }
         if let JObject::List(fbody_args) = o[0].clone() {
             let argsyms = fbody_args
@@ -94,9 +110,9 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.import_builtin("if", |_env, o| {
+    env.insert_builtin("if", |_env, o| {
         if o.len() != 3 {
-            return list!["error", "badarity"];
+            return new_list(&["error", "bad-arity"]);
         }
         let a = o;
         if let &[b, t, f] = &a {
@@ -110,7 +126,15 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.import_builtin("crash", |_env, _o| {
+    env.insert_builtin("program", |env, args| {
+        let mut last_expression = JObject::Null;
+        for arg in args {
+            last_expression = crate::eval(env, arg)
+        }
+        last_expression
+    });
+
+    env.insert_builtin("crash", |_env, _args| {
         unsafe { std::ptr::null_mut::<i8>().write(1) };
         JObject::Null
     });

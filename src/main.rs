@@ -20,7 +20,7 @@ struct Environment {
 }
 
 impl Environment {
-    pub fn import_builtin(
+    pub fn insert_builtin(
         &mut self,
         fname: &str,
         fbody: fn(&mut Environment, &[JObject]) -> JObject,
@@ -158,8 +158,8 @@ fn mainloop(env: &mut Environment) {
 
 fn run_file(env: &mut Environment, path: &str) -> Result<(), std::io::Error> {
     let program = fs::read_to_string(path)?;
-    let res = eval(env, &json::parse(&program));
-    Ok(println!("{}", res))
+    eval(env, &json::parse(&program));
+    Ok(())
 }
 
 fn main() -> Result<(), io::Error> {

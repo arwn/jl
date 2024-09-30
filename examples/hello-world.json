@@ -1,0 +1,4 @@
+["program",
+    ["import", "std::io"],
+    ["println", ["quote", "Hello, world!"]]]
+
