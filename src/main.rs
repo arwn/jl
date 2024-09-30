@@ -42,6 +42,7 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
                 let arguments = tl.iter().map(|to_eval| eval(e, to_eval)).collect();
                 apply_f(e, *definition.clone(), parameters.clone(), arguments)
             }
+
             Some((
                 JObject::Macro {
                     parameters: arguments,
@@ -62,16 +63,19 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
                     JObject::Null
                 }
             }
+
             Some((JObject::List(l), tl)) => {
                 // let list = vec![vec![eval(e, h)], tl.to_vec()].concat();
                 let hd = eval(e, &JObject::List(l.to_vec()));
                 let new_list = [vec![hd], tl.to_vec()].concat();
                 eval(e, &JObject::List(new_list))
             }
+
             Some(x) => {
                 println!("1st element of list is not function-like: {:?}", x);
                 JObject::Null
             }
+
             None => JObject::Null,
         },
 

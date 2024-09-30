@@ -1,33 +1,11 @@
-[
-    "quote",
-    {
-        "null": [],
-        "bool": true,
-        "number": 1234,
-        "string": "hello world",
-        "list": [
-            1,
-            2,
-            "three",
-            true
-        ],
-        "map": {
-            "name": "jl",
-            "age": 12
-        },
-        "func": [
-            "f",
-            [
-                "x"
-            ],
-            "x"
-        ],
-        "macro": [
-            "macro",
-            [
-                "x"
-            ],
-            "x"
-        ]
+[ "quote",
+    { "null": [],
+      "bool": true,
+      "number": 1234,
+      "string": "hello world",
+      "list": [1, true, "three"],
+      "map": {"name": "jl", "age": 12},
+      "func": ["f", ["x"], "x"],
+      "macro": ["macro", ["x"], "x"]
     }
 ]
