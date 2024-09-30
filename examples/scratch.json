@@ -1,0 +1,9 @@
+["program",
+
+    ["import", "std::io"],
+    ["import", "std::array"],
+    ["import", "std::object"],
+    ["import", "std::logic"],
+
+    ["println", ["map", "->string", ["quote", [1]]]]
+]

@@ -1,12 +1,19 @@
+use crate::eval;
 use crate::json::{new_list, ToJObject};
 use crate::{json::JObject, Environment};
 
+pub mod array;
 pub mod io;
+pub mod logic;
+pub mod object;
 
 pub fn import_builtin_library(env: &mut Environment, name: &str) -> JObject {
     // TODO: Is there a better way to import libraries?
     match name {
         "std::io" => io::load_mod(env),
+        "std::array" => array::load_mod(env),
+        "std::object" => object::load_mod(env),
+        "std::logic" => logic::load_mod(env),
         _ => {
             println!("builtin library not found: {}", name);
             return new_list(&["error", "bad-import"]);
@@ -39,23 +46,30 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
+    env.insert_builtin("->string", |env, args| {
+        if args.len() != 1 {
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
+        }
+        JObject::String(eval(env, &args[0]).to_string())
+    });
+
     env.insert_builtin("quote", |_env, args| {
         if args.len() != 1 {
-            return new_list(&["error", "bad-arity"]);
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
         }
         args[0].clone()
     });
 
     env.insert_builtin("quasiquote", |env, args| {
         if args.len() != 1 {
-            return new_list(&["error", "bad-arity"]);
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
         }
         quasiwalk(env, &args[0])
     });
 
     env.insert_builtin("def", |env, args| {
         if args.len() != 2 {
-            return new_list(&["error", "bad-arity"]);
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
         if let JObject::String(s) = args[0].clone() {
             let body = crate::eval(env, &args[1]);
@@ -66,11 +80,11 @@ pub fn load_mod(env: &mut Environment) {
         }
     });
 
-    env.insert_builtin("f", |_env, o| {
-        if o.len() != 2 {
-            return new_list(&["error", "bad-arity"]);
+    env.insert_builtin("f", |_env, args| {
+        if args.len() != 2 {
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
-        if let JObject::List(fbody_args) = o[0].clone() {
+        if let JObject::List(fbody_args) = args[0].clone() {
             let argsyms = fbody_args
                 .iter()
                 .map(|x| {
@@ -82,17 +96,17 @@ pub fn load_mod(env: &mut Environment) {
                 })
                 .collect();
 
-            JObject::new_func(argsyms, o[1].clone())
+            JObject::new_func(argsyms, args[1].clone())
         } else {
             JObject::Null
         }
     });
 
-    env.insert_builtin("macro", |_env, o| {
-        if o.len() != 2 {
-            return new_list(&["error", "bad-arity"]);
+    env.insert_builtin("macro", |_env, args| {
+        if args.len() != 2 {
+            return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
-        if let JObject::List(fbody_args) = o[0].clone() {
+        if let JObject::List(fbody_args) = args[0].clone() {
             let argsyms = fbody_args
                 .iter()
                 .map(|x| {
@@ -104,23 +118,7 @@ pub fn load_mod(env: &mut Environment) {
                 })
                 .collect();
 
-            JObject::new_macro(argsyms, o[1].clone())
-        } else {
-            JObject::Null
-        }
-    });
-
-    env.insert_builtin("if", |_env, o| {
-        if o.len() != 3 {
-            return new_list(&["error", "bad-arity"]);
-        }
-        let a = o;
-        if let &[b, t, f] = &a {
-            if truthy(b) {
-                t.clone()
-            } else {
-                f.clone()
-            }
+            JObject::new_macro(argsyms, args[1].clone())
         } else {
             JObject::Null
         }

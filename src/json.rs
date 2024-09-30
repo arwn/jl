@@ -102,6 +102,11 @@ impl Parser {
             return None;
         }
 
+        if let Some('}') = self.peek() {
+            self.i += 1;
+            return Some(JObject::Map(builder));
+        }
+
         loop {
             self.ws();
             let key = if let Some(JObject::String(s)) = self.string() {
@@ -244,7 +249,7 @@ impl fmt::Display for JObject {
         let str: String = match self {
             JObject::Null => "[]".to_string(),
             JObject::Bool(true) => "true".to_string(),
-            JObject::Bool(false) => "true".to_string(),
+            JObject::Bool(false) => "false".to_string(),
             JObject::Number(n) => n.to_string(),
             JObject::String(s) => ["\"", s, "\""].concat(),
             JObject::List(l) => {
