@@ -1,7 +1,5 @@
-use crate::{
-    json::{new_list, JObject, ToJObject},
-    Environment,
-};
+use crate::eval::{eval, Environment};
+use crate::json::{new_list, JObject, ToJObject};
 
 use super::truthy;
 
@@ -11,10 +9,10 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 3)]);
         }
         if let &[predicate, t, f] = &args {
-            if truthy(&crate::eval(env, predicate)) {
-                crate::eval(env, t)
+            if truthy(&eval(env, predicate)) {
+                eval(env, t)
             } else {
-                crate::eval(env, f)
+                eval(env, f)
             }
         } else {
             JObject::Null
@@ -23,7 +21,7 @@ pub fn load_mod(env: &mut Environment) {
 
     env.insert_builtin("or", |env, args| {
         for arg in args {
-            if truthy(&crate::eval(env, arg)) {
+            if truthy(&eval(env, arg)) {
                 return true.to_jobject();
             }
         }

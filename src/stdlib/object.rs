@@ -1,7 +1,9 @@
 use crate::{
+    eval::Environment,
     json::{new_list, JObject, ToJObject},
-    Environment,
 };
+
+use crate::eval::eval;
 
 pub fn load_mod(env: &mut Environment) {
     env.insert_builtin("contains-key", |env, args| {
@@ -10,7 +12,7 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
 
-        match (crate::eval(env, &args[0]), crate::eval(env, &args[1])) {
+        match (eval(env, &args[0]), eval(env, &args[1])) {
             (JObject::Map(map), JObject::String(key)) => map.contains_key(&key).to_jobject(),
             _ => JObject::Bool(false),
         }
@@ -18,11 +20,7 @@ pub fn load_mod(env: &mut Environment) {
 
     env.insert_builtin("insert", |env, args| {
         if let &[map, key, value] = &args {
-            match (
-                crate::eval(env, map),
-                crate::eval(env, key),
-                crate::eval(env, value),
-            ) {
+            match (eval(env, map), eval(env, key), eval(env, value)) {
                 (JObject::Map(map), JObject::String(key), value) => {
                     let mut new_map = map.clone();
                     new_map.insert(key.clone(), Box::new(value.clone()));

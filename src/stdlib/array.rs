@@ -1,8 +1,9 @@
 use crate::{
-    eval,
+    eval::Environment,
     json::{new_list, JObject},
-    Environment,
 };
+
+use crate::eval::eval;
 
 pub fn load_mod(env: &mut Environment) {
     env.insert_builtin("head", |env, args| {
@@ -11,7 +12,7 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
         }
 
-        match crate::eval(env, &args[0]) {
+        match eval(env, &args[0]) {
             JObject::List(vec) => vec.first().unwrap_or(&JObject::Null).clone(),
             _ => JObject::List(Vec::new()),
         }
@@ -23,7 +24,7 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
         }
 
-        match crate::eval(env, &args[0]) {
+        match eval(env, &args[0]) {
             JObject::List(vec) => JObject::List(vec[1..].to_vec()),
             _ => JObject::List(Vec::new()),
         }
@@ -35,7 +36,7 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 1)]);
         }
 
-        match crate::eval(env, &args[0]) {
+        match eval(env, &args[0]) {
             JObject::List(vec) => JObject::Number(vec.len() as i64),
             _ => JObject::Number(1),
         }
@@ -48,8 +49,8 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
 
-        let func = crate::eval(env, &args[0]);
-        let array = crate::eval(env, &args[1]);
+        let func = eval(env, &args[0]);
+        let array = eval(env, &args[1]);
 
         match (func, array) {
             (func, JObject::List(array)) => {

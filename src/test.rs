@@ -1,9 +1,11 @@
 use super::*;
-use crate::json;
+use crate::eval::eval;
+use crate::eval::Environment;
+use crate::json::{self, JObject};
 
 #[test]
 fn test_env() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     env.symbols.insert("x".to_string(), JObject::Number(3));
 
     let expr = json::parse("\"x\"");
@@ -14,7 +16,7 @@ fn test_env() {
 
 // #[test]
 // fn test_eval_ast() {
-//     let e = &mut init();
+//     let e = &mut Environment::init();
 
 //     e.symbols.insert(
 //         "x".to_string(),
@@ -32,7 +34,7 @@ fn test_env() {
 
 #[test]
 fn test_builtin_def() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     stdlib::load_mod(env);
     eval(env, &json::parse(r#"["def", "e", 3]")"#));
     assert_eq!(env.symbols.get("e"), Some(&JObject::Number(3)));
@@ -40,7 +42,7 @@ fn test_builtin_def() {
 
 // #[test]
 // fn test_func() {
-//     let env = &mut init();
+//     let env = &mut Environment::init();
 
 //     let func = JObject::new_func(vec!["x"], JObject::Symbol("x".to_string()));
 //     let args = vec![JObject::Number(32)];
@@ -52,7 +54,8 @@ fn test_builtin_def() {
 
 #[test]
 fn test_quasiquote() {
-    let env = &mut init();
+    let env = &mut Environment::init();
+    env.symbols.insert("pi".to_string(), JObject::Number(3));
     let cmd = r#"["quasiquote", [1, ["splice-unquote", "pi"], 2]]"#;
     stdlib::load_mod(env);
 
@@ -63,7 +66,7 @@ fn test_quasiquote() {
 
 #[test]
 fn test_func_literal() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     stdlib::load_mod(env);
 
     let prog = eval(env, &json::parse(r#"["f", [], 123]"#));
@@ -72,7 +75,7 @@ fn test_func_literal() {
 
 #[test]
 fn test_func_args() {
-    let env = &mut init();
+    let env = &mut Environment::init();
 
     env.symbols.insert(
         "f".to_string(),
@@ -89,7 +92,7 @@ fn test_func_args() {
 // takes in something like ((\ [x] x) 12)
 #[test]
 fn test_func_as_list() {
-    let env = &mut init();
+    let env = &mut Environment::init();
 
     let func = JObject::new_func(vec!["x"], JObject::String("x".to_string()));
     let list = JObject::List(vec![func, JObject::Number(42)]);
@@ -101,7 +104,7 @@ fn test_func_as_list() {
 
 #[test]
 fn test_func_call() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     env.symbols.insert(
         "x".to_string(),
         JObject::new_func(
@@ -119,7 +122,7 @@ fn test_func_call() {
 
 #[test]
 fn call_function_in_function_body() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     env.symbols.insert(
         "id".to_string(),
         JObject::new_func(vec!["x"], JObject::String("x".to_string())),
@@ -137,7 +140,7 @@ fn call_function_in_function_body() {
 
 #[test]
 fn macro_simple() {
-    let env = &mut init();
+    let env = &mut Environment::init();
     env.symbols.insert(
         "return-22".to_string(),
         JObject::new_macro(vec!["x"], JObject::Number(22)),

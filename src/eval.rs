@@ -1,25 +1,26 @@
 use std::collections::HashMap;
-use std::env::args;
 use std::fs;
-use std::io::{self, Write};
 
-mod json;
-use json::JObject;
-
-mod stdlib;
-
-#[cfg(test)]
-mod test;
+use crate::json;
+use crate::json::JObject;
 
 type JlFn = fn(&mut Environment, &[JObject]) -> JObject;
 
 #[derive(Debug, Clone)]
-struct Environment {
-    symbols: HashMap<String, JObject>,
-    builtins: HashMap<String, JlFn>,
+pub struct Environment {
+    pub symbols: HashMap<String, JObject>,
+    pub builtins: HashMap<String, JlFn>,
 }
 
 impl Environment {
+    pub fn init() -> Environment {
+        let env = Environment {
+            symbols: HashMap::new(),
+            builtins: HashMap::new(),
+        };
+        env
+    }
+
     pub fn insert_builtin(
         &mut self,
         fname: &str,
@@ -29,7 +30,7 @@ impl Environment {
     }
 }
 
-fn eval(e: &mut Environment, o: &JObject) -> JObject {
+pub fn eval(e: &mut Environment, o: &JObject) -> JObject {
     match o {
         JObject::List(list) => match list.split_first() {
             Some((
@@ -98,6 +99,12 @@ fn eval(e: &mut Environment, o: &JObject) -> JObject {
     }
 }
 
+pub fn run_file(env: &mut Environment, path: &str) -> Result<(), std::io::Error> {
+    let program = fs::read_to_string(path)?;
+    eval(env, &json::parse(&program));
+    Ok(())
+}
+
 fn apply_f(
     e: &mut Environment,
     definition: JObject,
@@ -117,82 +124,4 @@ fn call_builtin(env: &mut Environment, fname: &str, args: &[JObject]) -> Option<
         return Some(env.builtins.get(fname)?(env, args));
     }
     None
-}
-
-fn init() -> Environment {
-    let mut env = Environment {
-        symbols: HashMap::new(),
-        builtins: HashMap::new(),
-    };
-    env.symbols.insert("pi".to_string(), JObject::Number(3));
-    env.symbols.insert(
-        "a-string".to_string(),
-        JObject::String("this is a string".to_string()),
-    );
-
-    env
-}
-
-fn readline() -> String {
-    print!("; ");
-    io::stdout().flush().unwrap();
-    let mut line = String::new();
-    io::stdin().read_line(&mut line).unwrap();
-    line
-}
-
-fn read() -> JObject {
-    let line = readline();
-    json::parse(&line)
-}
-
-const HELP_STR: &str = "Helo!";
-
-fn mainloop(env: &mut Environment) {
-    loop {
-        let program = read();
-        let res: JObject = eval(env, &program);
-        println!("{}", res)
-    }
-}
-
-fn run_file(env: &mut Environment, path: &str) -> Result<(), std::io::Error> {
-    let program = fs::read_to_string(path)?;
-    eval(env, &json::parse(&program));
-    Ok(())
-}
-
-fn main() -> Result<(), io::Error> {
-    let env = &mut init();
-
-    env.symbols.insert(
-        "f0".to_string(),
-        JObject::new_func(vec![], JObject::Number(12)),
-    );
-
-    env.symbols.insert(
-        "f1".to_string(),
-        JObject::new_func(vec!["x"], JObject::String("x".to_string())),
-    );
-
-    env.symbols.insert("pi".to_string(), JObject::Number(3));
-    env.symbols.insert(
-        "pie".to_string(),
-        JObject::String("3.14159265359".to_string()),
-    );
-
-    env.symbols
-        .insert("help".to_string(), JObject::String(HELP_STR.to_string()));
-
-    stdlib::load_mod(env);
-
-    if args().len() == 1 {
-        mainloop(env)
-    } else if args().len() == 2 {
-        let args: Vec<String> = args().collect();
-        return run_file(env, &args[1]);
-    } else {
-        println!("invald # of args: {}", args().len())
-    }
-    Ok(())
 }

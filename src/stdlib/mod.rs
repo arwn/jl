@@ -1,6 +1,7 @@
-use crate::eval;
+use crate::eval::eval;
+use crate::eval::Environment;
+use crate::json::JObject;
 use crate::json::{new_list, ToJObject};
-use crate::{json::JObject, Environment};
 
 pub mod array;
 pub mod io;
@@ -37,7 +38,7 @@ pub fn load_mod(env: &mut Environment) {
     });
 
     env.insert_builtin("type", |env, args| {
-        let evaled: Vec<JObject> = args.iter().map(|x| crate::eval(env, x)).collect();
+        let evaled: Vec<JObject> = args.iter().map(|x| eval(env, x)).collect();
         if evaled.len() == 1 {
             evaled[0].typename().to_jobject()
         } else {
@@ -72,7 +73,7 @@ pub fn load_mod(env: &mut Environment) {
             return new_list(&["error", "bad-arity", &format!("{} != {}", args.len(), 2)]);
         }
         if let JObject::String(s) = args[0].clone() {
-            let body = crate::eval(env, &args[1]);
+            let body = eval(env, &args[1]);
             env.symbols.insert(s, body.clone());
             body
         } else {
@@ -127,7 +128,7 @@ pub fn load_mod(env: &mut Environment) {
     env.insert_builtin("program", |env, args| {
         let mut last_expression = JObject::Null;
         for arg in args {
-            last_expression = crate::eval(env, arg)
+            last_expression = eval(env, arg)
         }
         last_expression
     });
@@ -141,7 +142,7 @@ pub fn load_mod(env: &mut Environment) {
 fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
     if let JObject::List(l) = o {
         if l.len() > 1 && l[0] == "unquote".to_jobject() {
-            return crate::eval(env, &l[1].clone());
+            return eval(env, &l[1].clone());
         }
         // else we check if anything should be spliced
         let mut done = Vec::new();
@@ -149,7 +150,7 @@ fn quasiwalk(env: &mut Environment, o: &JObject) -> JObject {
             if let JObject::List(l) = x {
                 if let Some(JObject::String(s)) = l.first() {
                     if s == "splice-unquote" {
-                        done.push(crate::eval(env, &l[1]));
+                        done.push(eval(env, &l[1]));
                     } else {
                         done.push(x.clone());
                     }
